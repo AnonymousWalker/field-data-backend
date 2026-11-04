@@ -48,7 +48,52 @@ This is the flow being reproduced:
 | `lapi-postgres`, `lapi-migrate`, `lapi-hasura`, `lapi-controller` | `repos/languageapi` | Drizzle migrations run once before Hasura and the controller start. |
 | `azurite` | Microsoft image | Blob, queue and table storage; also `AzureWebJobsStorage` for every Functions app. |
 | `servicebus`, `sb-sql`, `sb-health` | Microsoft images | Service Bus emulator. Topics, subscriptions and filter rules are in `config/servicebus/Config.json`, translated from `repos/srp/infra/main.bicep`. |
+| `fdb-api` | `tools/fdb` | Local HTTP helper for import/put/status (see *Working with real repos*). |
 | `tools` (profile) | `azure-cli` | One-off Azure CLI used by the seed, e.g. `docker compose run --rm tools az storage blob list -c '$web'`. |
+
+## Working with real repos (`fdb`)
+
+`bin/fdb` (CLI) and `fdb-api` (HTTP on `127.0.0.1:7080`) wrap the import → edit → push → follow loop. They share one
+implementation (`tools/fdb`, Python stdlib only; the host needs Python ≥ 3.10 and git). **Everything stays local:**
+imports are mirrored into `.local/imports/` with their push URL set to `DISABLED`, and fdb refuses to talk to any WACS
+other than the local one.
+
+| Step | CLI | HTTP |
+|---|---|---|
+| Import a repo (clone, create the local owner/repo, push its default branch) | `bin/fdb import <git-url> [--as owner/repo] [--wait]` | `POST /import` `{"url": "...", "as": "owner/repo", "wait": 300}` |
+| Replace one file in one commit (fires the webhook) | `bin/fdb put owner/repo <path> <local-file> [-m msg] [--wait]` | `PUT /repos/{owner}/{repo}/contents/{path}?message=&wait=` (raw body) |
+| Follow a commit: WACS → SRP render → languageapi | `bin/fdb status owner/repo [--commit sha] [--wait]` | `GET /repos/{owner}/{repo}/pipeline?commit=&wait=` |
+| List local repos | `bin/fdb list` | `GET /repos` |
+
+Make wrappers: `make import URL=… [AS=o/r] [WAIT=300]`, `make put REPO=o/r FILE_PATH=… SRC=… [MSG=…] [WAIT=300]`,
+`make status REPO=o/r [WAIT=300]`, `make repos`. Add `--json` to any CLI command for machine-readable output.
+
+`status` reports each stage as `pending` / `ok` / `failed`. `languageapi` is checked as Hasura's `anonymous` role, i.e. what the
+public API would serve. Exit codes: 0 ok, 1 failed, 2 bad input, 3 still pending. HTTP pipeline status: 200 ok, 202 pending,
+409 failed.
+
+Example with a real WACS repo:
+
+```bash
+bin/fdb import https://content.bibletranslationtools.org/anonymouswalker/en_ulb --wait
+curl -fsS http://localhost:3000/anonymouswalker/en_ulb/raw/branch/master/66-JUD.usfm > jud.usfm
+# ...edit jud.usfm...
+bin/fdb put anonymouswalker/en_ulb 66-JUD.usfm jud.usfm -m "Test edit" --wait
+```
+
+The same over HTTP:
+
+```bash
+curl -X POST localhost:7080/import -H 'content-type: application/json' \
+  -d '{"url":"https://content.bibletranslationtools.org/anonymouswalker/en_ulb","wait":300}'
+curl -X PUT 'localhost:7080/repos/anonymouswalker/en_ulb/contents/66-JUD.usfm?message=Test%20edit&wait=300' \
+  --data-binary @jud.usfm
+curl 'localhost:7080/repos/anonymouswalker/en_ulb/pipeline'
+```
+
+The CLI and the HTTP API keep separate import mirrors (`.local/imports/` and the `fdb_imports` volume). `fdb-api` clones from
+inside the Docker network, so it can also import from the local WACS (`http://wacs:3000/owner/repo.git`). It can't read
+`file://` paths on the host. `make test-tools` runs an offline end-to-end test of both.
 
 ## Layout
 
@@ -59,7 +104,8 @@ compose/overrides/           optional overlays (wacs-prebuilt.yaml)
 docker/                      umbrella-owned Dockerfiles (build context = the submodule)
 config/                      emulator config + env overrides for upstream config
 seed/                        seed.sh, fixtures (demo Bible repo), templates, reference data, SQL
-scripts/                     smoke.sh and shared helpers (lib.sh)
+scripts/                     smoke.sh, test-tools.sh and shared helpers (lib.sh)
+tools/fdb/, bin/fdb          fdb CLI + HTTP helper (stdlib Python)
 repos/                       submodules: wacs (prod), srp (master), languageapi (prod)
 ```
 

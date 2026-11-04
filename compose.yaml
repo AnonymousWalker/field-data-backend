@@ -7,3 +7,4 @@ include:
   - compose/wacs.yaml
   - compose/languageapi.yaml
   - compose/srp.yaml
+  - compose/tools.yaml
