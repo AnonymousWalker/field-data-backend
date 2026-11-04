@@ -1,0 +1,10 @@
+[{
+  "id": "fdb-seed-lang-en",
+  "ietfCode": "en",
+  "nationalName": "English",
+  "englishName": "English",
+  "direction": "ltr",
+  "iso6393": "eng",
+  "homeCountryAlpha2": "US",
+  "allCountryAlpha2": ["US"]
+}]

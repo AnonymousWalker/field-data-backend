@@ -1,0 +1,33 @@
+# Minimal Resource Container fixture so SRP identifies this repo as a Bible (identifier: ulb)
+# without needing the public langnames service. Text: World English Bible (public domain).
+dublin_core:
+  conformsto: 'rc0.2'
+  contributor: []
+  creator: 'field-data-backend seed'
+  description: 'Demo fixture for the local stack'
+  format: 'text/usfm'
+  identifier: 'ulb'
+  issued: '2026-01-01'
+  language:
+    identifier: 'en'
+    title: 'English'
+    direction: 'ltr'
+  modified: '2026-01-01'
+  publisher: 'field-data-backend'
+  relation: []
+  rights: 'Public Domain'
+  source: []
+  subject: 'Bible'
+  title: 'Demo Bible'
+  type: 'bundle'
+  version: '1'
+checking:
+  checking_entity: []
+  checking_level: '1'
+projects:
+  - title: 'Jude'
+    versification: 'ufw'
+    identifier: 'jud'
+    sort: 65
+    path: './65-JUD.usfm'
+    categories: ['bible-nt']
