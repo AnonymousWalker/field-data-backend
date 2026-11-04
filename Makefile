@@ -64,25 +64,25 @@ smoke: ## Health checks + end-to-end render flow
 .PHONY: import
 import: ## Import a git repo into the local WACS (URL=<git url> [AS=owner/repo] [WAIT=300])
 	@test -n "$(URL)" || { echo "usage: make import URL=<git url> [AS=owner/repo] [WAIT=300]" >&2; exit 2; }
-	./bin/fdb import "$(URL)" $(if $(AS),--as "$(AS)") $(if $(WAIT),--wait $(WAIT))
+	./tools/cli/fdb import "$(URL)" $(if $(AS),--as "$(AS)") $(if $(WAIT),--wait $(WAIT))
 
 .PHONY: put
 put: ## Replace one file in one commit (REPO=owner/repo FILE_PATH=<path in repo> SRC=<local file> [MSG=] [WAIT=])
 	@test -n "$(REPO)" -a -n "$(FILE_PATH)" -a -n "$(SRC)" || { echo "usage: make put REPO=o/r FILE_PATH=<path> SRC=<file> [MSG=..] [WAIT=300]" >&2; exit 2; }
-	./bin/fdb put "$(REPO)" "$(FILE_PATH)" "$(SRC)" $(if $(MSG),-m "$(MSG)") $(if $(WAIT),--wait $(WAIT))
+	./tools/cli/fdb put "$(REPO)" "$(FILE_PATH)" "$(SRC)" $(if $(MSG),-m "$(MSG)") $(if $(WAIT),--wait $(WAIT))
 
 .PHONY: status
 status: ## Pipeline status of a repo's head commit (REPO=owner/repo [WAIT=300])
 	@test -n "$(REPO)" || { echo "usage: make status REPO=owner/repo [WAIT=300]" >&2; exit 2; }
-	./bin/fdb status "$(REPO)" $(if $(WAIT),--wait $(WAIT))
+	./tools/cli/fdb status "$(REPO)" $(if $(WAIT),--wait $(WAIT))
 
 .PHONY: repos
 repos: ## List local WACS repos and their pipeline state
-	./bin/fdb list
+	./tools/cli/fdb list
 
 .PHONY: test-tools
 test-tools: ## Offline end-to-end test of the fdb CLI and HTTP API
-	./scripts/test-tools.sh
+	./tools/test.sh
 
 .PHONY: reset
 reset: nuke up seed smoke ## Fresh stack from scratch: nuke, up, seed, smoke

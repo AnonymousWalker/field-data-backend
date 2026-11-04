@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Offline end-to-end test of the fdb CLI (bin/fdb) and HTTP API (fdb-api). Run after `make up seed`.
+# Offline end-to-end test of the fdb CLI (tools/cli/fdb) and HTTP API (fdb-api). Run after `make up seed`.
 #   CLI : import a throwaway git repo (file://, built from seed/fixtures), put an edit, wait for the
 #         pipeline, check the rendered page.
 #   HTTP: import the seeded demo repo from inside the network, put an edit, wait, check.
@@ -31,8 +31,8 @@ git -C "$SRC" init -q -b master
 git -C "$SRC" -c user.name=fdb-test -c user.email=fdb-test@example.com add -A
 git -C "$SRC" -c user.name=fdb-test -c user.email=fdb-test@example.com commit -qm "fixture for $RUN_ID"
 CLI_REPO="fdbtest/${RUN_ID}_ulb"
-bin/fdb import "file://$ROOT/$SRC" --as "$CLI_REPO" --wait 300 >/dev/null \
-  || fail "fdb import --wait did not complete (bin/fdb status $CLI_REPO)"
+tools/cli/fdb import "file://$ROOT/$SRC" --as "$CLI_REPO" --wait 300 >/dev/null \
+  || fail "fdb import --wait did not complete (tools/cli/fdb status $CLI_REPO)"
 ok "imported and rendered $CLI_REPO"
 [[ $(git -C ".local/imports/$CLI_REPO.git" remote get-url --push origin) == DISABLED ]] \
   || fail "imported mirror can still push to its source"
@@ -41,7 +41,7 @@ ok "mirror push URL is DISABLED"
 log "CLI: put an edit and follow it through the pipeline"
 MARK="CLI-$RUN_ID"
 edited_jude "$MARK" > "$WORK/jud.usfm"
-bin/fdb --json put "$CLI_REPO" 65-JUD.usfm "$WORK/jud.usfm" -m "test-tools $MARK" --wait 300 > "$WORK/put.json" \
+tools/cli/fdb --json put "$CLI_REPO" 65-JUD.usfm "$WORK/jud.usfm" -m "test-tools $MARK" --wait 300 > "$WORK/put.json" \
   || fail "fdb put --wait did not complete: $(cat "$WORK/put.json")"
 [[ $(json_field "['pipeline']['status']" < "$WORK/put.json") == ok ]] || fail "pipeline not ok"
 curl -fsS "$BLOB/$CLI_REPO/JUD/1.html" | grep -q "$MARK" || fail "rendered page lacks the edit"
@@ -68,7 +68,7 @@ code=$(curl -s -o /dev/null -w '%{http_code}' "$API/repos/$HTTP_REPO/pipeline")
 ok "PUT edit rendered and recorded; GET pipeline = 200"
 
 log "Guards"
-if FDB_WACS_URL=https://content.bibletranslationtools.org bin/fdb list 2>"$WORK/guard.err"; then
+if FDB_WACS_URL=https://content.bibletranslationtools.org tools/cli/fdb list 2>"$WORK/guard.err"; then
   fail "a non-local WACS URL was accepted"
 fi
 grep -q "refusing" "$WORK/guard.err" || fail "unexpected guard error: $(cat "$WORK/guard.err")"

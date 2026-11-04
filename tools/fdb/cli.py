@@ -1,4 +1,4 @@
-"""fdb command line. Run `bin/fdb --help`."""
+"""fdb command line. Run `tools/cli/fdb --help`."""
 from __future__ import annotations
 
 import argparse

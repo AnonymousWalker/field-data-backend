@@ -1,9 +1,9 @@
 # fdb-api: local HTTP helper for importing, editing and following repos through the pipeline.
-# Same code as bin/fdb (tools/fdb). Published on 127.0.0.1 only; it has no auth.
+# Same code as the CLI (tools/cli/fdb -> tools/fdb). Published on 127.0.0.1 only; it has no auth.
 services:
   fdb-api:
     build:
-      context: ../docker/fdb-api
+      context: ../tools/http
       secrets: [extra_ca]
     image: fdb/fdb-api:local
     environment:

@@ -53,47 +53,111 @@ This is the flow being reproduced:
 
 ## Working with real repos (`fdb`)
 
-`bin/fdb` (CLI) and `fdb-api` (HTTP on `127.0.0.1:7080`) wrap the import → edit → push → follow loop. They share one
-implementation (`tools/fdb`, Python stdlib only; the host needs Python ≥ 3.10 and git). **Everything stays local:**
-imports are mirrored into `.local/imports/` with their push URL set to `DISABLED`, and fdb refuses to talk to any WACS
-other than the local one.
+`fdb` lets you test the pipeline with real content in three steps: **import** a repo, **edit** a file, and **check** that
+the change reached languageapi. You can drive it from the command line (`tools/cli/fdb`) or over HTTP
+(`http://localhost:7080`). Both do the same thing.
 
-| Step | CLI | HTTP |
-|---|---|---|
-| Import a repo (clone, create the local owner/repo, push its default branch) | `bin/fdb import <git-url> [--as owner/repo] [--wait]` | `POST /import` `{"url": "...", "as": "owner/repo", "wait": 300}` |
-| Replace one file in one commit (fires the webhook) | `bin/fdb put owner/repo <path> <local-file> [-m msg] [--wait]` | `PUT /repos/{owner}/{repo}/contents/{path}?message=&wait=` (raw body) |
-| Follow a commit: WACS → SRP render → languageapi | `bin/fdb status owner/repo [--commit sha] [--wait]` | `GET /repos/{owner}/{repo}/pipeline?commit=&wait=` |
-| List local repos | `bin/fdb list` | `GET /repos` |
+Everything stays on your machine. fdb only pushes to the local WACS, and it can never push back to the repo you imported from.
 
-Make wrappers: `make import URL=… [AS=o/r] [WAIT=300]`, `make put REPO=o/r FILE_PATH=… SRC=… [MSG=…] [WAIT=300]`,
-`make status REPO=o/r [WAIT=300]`, `make repos`. Add `--json` to any CLI command for machine-readable output.
+Before you start, run `make up` (and `make seed` on a fresh stack).
 
-`status` reports each stage as `pending` / `ok` / `failed`. `languageapi` is checked as Hasura's `anonymous` role, i.e. what the
-public API would serve. Exit codes: 0 ok, 1 failed, 2 bad input, 3 still pending. HTTP pipeline status: 200 ok, 202 pending,
-409 failed.
+### From the command line
 
-Example with a real WACS repo:
+**1. Import a repo.** This copies it into the local WACS and waits until it has been rendered:
 
 ```bash
-bin/fdb import https://content.bibletranslationtools.org/anonymouswalker/en_ulb --wait
-curl -fsS http://localhost:3000/anonymouswalker/en_ulb/raw/branch/master/66-JUD.usfm > jud.usfm
-# ...edit jud.usfm...
-bin/fdb put anonymouswalker/en_ulb 66-JUD.usfm jud.usfm -m "Test edit" --wait
+tools/cli/fdb import https://content.bibletranslationtools.org/anonymouswalker/en_ulb --wait
 ```
 
-The same over HTTP:
+**2. Edit a file.** Download it, change it, and send it back. Each `put` makes one commit, just like a real push:
 
 ```bash
-curl -X POST localhost:7080/import -H 'content-type: application/json' \
-  -d '{"url":"https://content.bibletranslationtools.org/anonymouswalker/en_ulb","wait":300}'
-curl -X PUT 'localhost:7080/repos/anonymouswalker/en_ulb/contents/66-JUD.usfm?message=Test%20edit&wait=300' \
+curl -o jud.usfm http://localhost:3000/anonymouswalker/en_ulb/raw/branch/master/66-JUD.usfm
+# edit jud.usfm in any editor
+tools/cli/fdb put anonymouswalker/en_ulb 66-JUD.usfm jud.usfm -m "Fix Jude 1:1" --wait
+```
+
+**3. Check the result.** `--wait` already did this, but you can ask again at any time:
+
+```bash
+tools/cli/fdb status anonymouswalker/en_ulb
+```
+
+```
+anonymouswalker/en_ulb @ 9a3b13d04e: ok (0.7s)
+  wacs         ok   commit=9a3b13d04e…, message=Fix Jude 1:1
+  render       ok   ended_at=…, converter=Bible.Normal, output=http://localhost:10000/…/index.json
+  languageapi  ok   rendered_files=1258, updated_at=…
+```
+
+All three lines say `ok` when the change has gone all the way through:
+
+- **wacs:** the commit is in the local WACS.
+- **render:** SRP rendered it.
+- **languageapi:** the public API has the new data.
+
+`pending` means it's still working. `failed` comes with the reason.
+
+Other commands:
+
+- `tools/cli/fdb list`: show every local repo and whether it has been rendered.
+- `tools/cli/fdb --help`, or `tools/cli/fdb <command> --help`: all options.
+- `--json` (before the command, e.g. `tools/cli/fdb --json status …`): machine-readable output for scripts.
+
+Prefer `make`? These do the same:
+
+```bash
+make import URL=https://content.bibletranslationtools.org/anonymouswalker/en_ulb WAIT=300
+make put REPO=anonymouswalker/en_ulb FILE_PATH=66-JUD.usfm SRC=jud.usfm MSG="Fix Jude 1:1" WAIT=300
+make status REPO=anonymouswalker/en_ulb
+make repos
+```
+
+### Over HTTP
+
+The same three steps with `curl`, or from Postman or any script. Every response is JSON.
+
+**1. Import a repo:**
+
+```bash
+curl -X POST http://localhost:7080/import \
+  -H 'content-type: application/json' \
+  -d '{"url": "https://content.bibletranslationtools.org/anonymouswalker/en_ulb", "wait": 300}'
+```
+
+**2. Edit a file.** The request body is the new file content:
+
+```bash
+curl -X PUT 'http://localhost:7080/repos/anonymouswalker/en_ulb/contents/66-JUD.usfm?message=Fix%20Jude%201:1&wait=300' \
   --data-binary @jud.usfm
-curl 'localhost:7080/repos/anonymouswalker/en_ulb/pipeline'
 ```
 
-The CLI and the HTTP API keep separate import mirrors (`.local/imports/` and the `fdb_imports` volume). `fdb-api` clones from
-inside the Docker network, so it can also import from the local WACS (`http://wacs:3000/owner/repo.git`). It can't read
-`file://` paths on the host. `make test-tools` runs an offline end-to-end test of both.
+**3. Check the result:**
+
+```bash
+curl http://localhost:7080/repos/anonymouswalker/en_ulb/pipeline
+```
+
+The pipeline check returns `200` when everything is done, `202` while it's still working, and `409` if a step failed.
+
+All endpoints:
+
+| What | Request |
+|---|---|
+| Import a repo | `POST /import` with `{"url": "...", "as": "owner/repo", "wait": 300}` (`as` and `wait` are optional) |
+| Replace a file | `PUT /repos/{owner}/{repo}/contents/{path}?message=...&wait=300`, with the file as the body |
+| Check a commit | `GET /repos/{owner}/{repo}/pipeline?commit=...&wait=300` (defaults to the latest commit) |
+| List repos | `GET /repos` |
+| Health | `GET /healthz` |
+
+### Good to know
+
+- **`wait` is in seconds.** Without it, a command returns right away, and you check later with `status` or `/pipeline`.
+- **Rename on import** with `--as owner/repo` (CLI) or `"as"` (HTTP). This lets you import the same repo twice, e.g. `--as qa/en_ulb`.
+- **The HTTP helper runs inside Docker,** so it can't read files by path on your machine. Send file contents in the request body instead. It can also import from the local WACS itself: `"url": "http://wacs:3000/owner/repo.git"`.
+- **Separate copies:** the CLI and the HTTP helper each keep their own copy of imported repos. `make nuke` deletes both.
+- **Exit codes** (CLI): `0` all ok, `1` a step failed, `2` bad input, `3` still pending when `--wait` ran out.
+- **Self-test:** `make test-tools` runs an offline test of both the CLI and the HTTP helper.
 
 ## Layout
 
@@ -104,8 +168,12 @@ compose/overrides/           optional overlays (wacs-prebuilt.yaml)
 docker/                      umbrella-owned Dockerfiles (build context = the submodule)
 config/                      emulator config + env overrides for upstream config
 seed/                        seed.sh, fixtures (demo Bible repo), templates, reference data, SQL
-scripts/                     smoke.sh, test-tools.sh and shared helpers (lib.sh)
-tools/fdb/, bin/fdb          fdb CLI + HTTP helper (stdlib Python)
+scripts/                     smoke.sh and shared helpers (lib.sh)
+tools/                       fdb support tools:
+  fdb/                       shared Python package (stdlib only): core, clients, CLI and HTTP front ends
+  cli/fdb                    CLI entry point
+  http/                      fdb-api image (Dockerfile, entrypoint)
+  test.sh                    offline end-to-end test of both (make test-tools)
 repos/                       submodules: wacs (prod), srp (master), languageapi (prod)
 ```
 
