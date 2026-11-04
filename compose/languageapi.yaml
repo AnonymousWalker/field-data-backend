@@ -1,0 +1,96 @@
+# languageapi: Postgres (schema owned by Drizzle migrations) + Hasura (public read API) + controller
+# (Azure Functions: REST write routes, Service Bus consumers, timers). Built from repos/languageapi.
+x-lapi-db-url: &lapi-db-url postgres://docker:docker@lapi-postgres:5432/docker
+x-sb-conn: &sb-conn "Endpoint=sb://servicebus;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+x-azurite-conn: &azurite-conn "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;QueueEndpoint=http://azurite:10001/devstoreaccount1;TableEndpoint=http://azurite:10002/devstoreaccount1;"
+
+services:
+  lapi-postgres:
+    image: postgres:15.7
+    environment:
+      POSTGRES_USER: docker
+      POSTGRES_PASSWORD: docker
+      POSTGRES_DB: docker
+    volumes:
+      - lapi_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U docker"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  lapi-migrate:
+    build:
+      context: ../repos/languageapi/controller
+      dockerfile: ../../../docker/languageapi/controller.Dockerfile
+      target: migrate
+      secrets: [extra_ca]
+    image: fdb/lapi-migrate:local
+    environment:
+      DATABASE_URL: *lapi-db-url
+    depends_on:
+      lapi-postgres:
+        condition: service_healthy
+    restart: "no"
+
+  lapi-hasura:
+    image: hasura/graphql-engine:v2.30.1.cli-migrations-v3
+    volumes:
+      - ../repos/languageapi/hasura/metadata:/hasura-metadata:ro
+    ports:
+      - "${HASURA_PORT:-8080}:8080"
+    environment:
+      HASURA_GRAPHQL_METADATA_DATABASE_URL: *lapi-db-url
+      PG_DATABASE_URL: *lapi-db-url
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
+      HASURA_GRAPHQL_DEV_MODE: "true"
+      # The langnames-sync cron would push to Cloudflare R2; locally it targets a harmless endpoint.
+      LANGNAMES_SYNC_WEBHOOK: http://lapi-hasura:8080/healthz
+    depends_on:
+      lapi-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  lapi-controller:
+    build:
+      context: ../repos/languageapi/controller
+      dockerfile: ../../../docker/languageapi/controller.Dockerfile
+      target: runtime
+      secrets: [extra_ca]
+    image: fdb/lapi-controller:local
+    ports:
+      - "${LAPI_CONTROLLER_PORT:-7072}:80"
+    environment:
+      DATABASE_URL: *lapi-db-url
+      BUS_CONN: *sb-conn
+      WACS_API_URL: http://wacs:3000/api/v1
+      AzureWebJobsStorage: *azurite-conn
+      # NODE_ENV deliberately unset: the controller then uses the production subscription names
+      # (reporendered-languageapi, languageapi) that config/servicebus/Config.json declares.
+    depends_on:
+      lapi-migrate:
+        condition: service_completed_successfully
+      azurite:
+        condition: service_healthy
+      sb-health:
+        condition: service_healthy
+    healthcheck:
+      # Cheap anonymous route that also proves the DB connection works.
+      test: ["CMD", "node", "-e", "fetch('http://localhost/api/language').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 20s
+
+volumes:
+  lapi_pgdata:
+
+secrets:
+  # Optional PEM bundle trusted during image builds (TLS-intercepting proxies). `make` stages it from
+  # $EXTRA_CA_FILE, or creates it empty.
+  extra_ca:
+    file: ../.local/extra-ca.pem
