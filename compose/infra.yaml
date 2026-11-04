@@ -1,0 +1,80 @@
+# Shared cloud-emulation infrastructure: Azure Storage (Azurite) and Azure Service Bus (emulator + its SQL backend).
+services:
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:3.35.0
+    command: >
+      azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --tableHost 0.0.0.0
+      --location /data --loose --skipApiVersionCheck --disableProductStyleUrl
+    ports:
+      - "${AZURITE_BLOB_PORT:-10000}:10000"
+      - "${AZURITE_QUEUE_PORT:-10001}:10001"
+      - "${AZURITE_TABLE_PORT:-10002}:10002"
+    volumes:
+      - azurite_data:/data
+    healthcheck:
+      # Any HTTP response (even 400) means the blob endpoint is listening.
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:10000/',()=>process.exit(0)).on('error',()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  sb-sql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "${SB_SQL_PASSWORD:-FieldData!Local123}"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' -b -o /dev/null"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 20s
+
+  servicebus:
+    image: mcr.microsoft.com/azure-messaging/servicebus-emulator:latest
+    depends_on:
+      sb-sql:
+        condition: service_healthy
+    environment:
+      SQL_SERVER: sb-sql
+      MSSQL_SA_PASSWORD: "${SB_SQL_PASSWORD:-FieldData!Local123}"
+      ACCEPT_EULA: "Y"
+      SQL_WAIT_INTERVAL: "5"
+    volumes:
+      - ../config/servicebus/Config.json:/ServiceBus_Emulator/ConfigFiles/Config.json:ro
+    ports:
+      - "${SERVICEBUS_PORT:-5672}:5672"
+      - "${SERVICEBUS_MGMT_PORT:-5300}:5300"
+    healthcheck:
+      # The emulator image has no shell tools; the umbrella `sb-health` sidecar probes it instead (see below).
+      disable: true
+
+  # Probes the emulator's management /health endpoint so other services can depend on it being ready.
+  sb-health:
+    image: curlimages/curl:8.11.1
+    depends_on:
+      - servicebus
+    entrypoint: ["sh", "-c", "until curl -fsS http://servicebus:5300/health >/dev/null; do sleep 3; done; echo ready; sleep infinity"]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://servicebus:5300/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 10s
+
+  # On-demand Azure CLI for seeding/inspecting Azurite (`docker compose run --rm tools az ...`).
+  tools:
+    image: mcr.microsoft.com/azure-cli:2.67.0
+    profiles: ["tools"]
+    environment:
+      AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;QueueEndpoint=http://azurite:10001/devstoreaccount1;TableEndpoint=http://azurite:10002/devstoreaccount1;"
+      AZURE_CORE_ONLY_SHOW_ERRORS: "true"
+      AZURE_CORE_COLLECT_TELEMETRY: "false"
+    volumes:
+      - ../seed:/seed:ro
+    depends_on:
+      azurite:
+        condition: service_healthy
+
+volumes:
+  azurite_data:

@@ -1,0 +1,6 @@
+# field-data-backend: local stack for WACS + ScriptureRenderingPipeline + languageapi.
+# Use the Makefile (`make up`, `make reset`, ...) rather than calling compose directly.
+name: field-data
+
+include:
+  - compose/infra.yaml
