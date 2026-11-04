@@ -1,0 +1,384 @@
+<!doctype html>
+<!-- Template for docs/architecture/index.html. Edit this file, then run `make graph`; the diagram data is
+     inlined at the DIAGRAM_DATA marker so the page works from file:// with no server. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>System Design Diagram</title>
+<style>
+  :root {
+    --bg: #f5f5f3; --card: #ffffff; --text: #1c1917; --muted: #6b6560; --line: #e4e2dd; --chip: #efeee9;
+    --accent: #6d28d9; --accent-soft: #ede9fe; --shadow: 0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.06);
+    --svc: #dbeafe; --svc-b: #1d4ed8; --fn: #ede9fe; --fn-b: #6d28d9; --topic: #ffedd5; --topic-b: #c2410c;
+    --store: #dcfce7; --store-b: #15803d; --tool: #f1f5f9; --tool-b: #475569; --off: #f8fafc; --off-b: #94a3b8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121211; --card: #1b1b19; --text: #ecebe6; --muted: #a29f97; --line: #2f2e2b; --chip: #2a2926;
+      --accent: #c4b5fd; --accent-soft: #3b2a6b; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+      --svc: #1e3a8a; --svc-b: #93c5fd; --fn: #3b2a6b; --fn-b: #c4b5fd; --topic: #5a260c; --topic-b: #fdba74;
+      --store: #14532d; --store-b: #86efac; --tool: #27272a; --tool-b: #a1a1aa; --off: #1c1c1e; --off-b: #71717a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121211; --card: #1b1b19; --text: #ecebe6; --muted: #a29f97; --line: #2f2e2b; --chip: #2a2926;
+    --accent: #c4b5fd; --accent-soft: #3b2a6b; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+    --svc: #1e3a8a; --svc-b: #93c5fd; --fn: #3b2a6b; --fn-b: #c4b5fd; --topic: #5a260c; --topic-b: #fdba74;
+    --store: #14532d; --store-b: #86efac; --tool: #27272a; --tool-b: #a1a1aa; --off: #1c1c1e; --off-b: #71717a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--text); font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  code { font: .9em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--chip); padding: 0 .3em; border-radius: 4px; }
+  a { color: var(--accent); }
+  button { font: inherit; color: inherit; }
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 28px 16px 48px; }
+
+  header.top { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 18px; }
+  header.top h1 { margin: 0; font-size: clamp(22px, 3vw, 30px); letter-spacing: -.01em; }
+  header.top p { margin: 4px 0 0; color: var(--muted); max-width: 70ch; }
+  .theme { margin-left: auto; flex: none; border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 7px; cursor: pointer; line-height: 0; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; }
+  .toolbar { display: flex; align-items: center; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .toolbar .grow { flex: 1; color: var(--muted); font-size: 13px; min-width: 160px; }
+  .btn { border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: 5px 11px; cursor: pointer; font-size: 13px; white-space: nowrap; }
+  .btn:hover { border-color: var(--accent); }
+  .btn.icon { width: 32px; padding: 5px 0; text-align: center; }
+  .stage { position: relative; height: min(78vh, 900px); min-height: 420px; background:
+      radial-gradient(circle, var(--line) 1px, transparent 1px) 0 0 / 22px 22px; cursor: grab; }
+  .stage:active { cursor: grabbing; }
+  #diagram { width: 100%; height: 100%; }
+  #diagram > svg { width: 100% !important; height: 100% !important; max-width: none !important; }
+  .loading, .failed { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); text-align: center; padding: 24px; }
+  .failed { display: none; }
+
+  /* Mermaid output tweaks */
+  #diagram .node, #diagram .cluster { transition: opacity .2s; }
+  #diagram .edgePaths path, #diagram .edgeLabels > .edgeLabel { transition: opacity .2s; }
+  #diagram .node a, #diagram a .node { cursor: pointer; }
+  #diagram .node:hover rect, #diagram .node:hover polygon, #diagram .node:hover path { filter: brightness(.96); }
+  #diagram .edgeLabel, #diagram .edgeLabel p { font-size: 11px; }
+  #diagram small { font-size: 11px; opacity: .8; }
+  #diagram.focus .node:not(.hl), #diagram.focus .cluster:not(.hl) > rect { opacity: .18; }
+  #diagram.focus .edgePaths path:not(.hl), #diagram.focus .edgeLabels > .edgeLabel:not(.hl) { opacity: .1; }
+  #diagram.focus .node.hl rect, #diagram.focus .node.hl polygon, #diagram.focus .node.hl path, #diagram.focus .node.hl circle {
+    stroke-width: 3px !important; stroke: var(--accent) !important; }
+  #diagram.focus .edgePaths path.hl { stroke-width: 2.5px !important; }
+  .mermaidTooltip {
+    position: absolute; z-index: 30; max-width: 320px; padding: 6px 9px; border-radius: 8px; font-size: 12px; line-height: 1.4;
+    background: var(--card) !important; color: var(--text); border: 1px solid var(--line) !important; box-shadow: var(--shadow); pointer-events: none;
+  }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 12px 14px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .sw { width: 22px; height: 14px; border-radius: 4px; border: 1.5px solid; display: inline-block; }
+  .sw.round { border-radius: 8px; }
+  .sw.hex { clip-path: polygon(20% 0, 80% 0, 100% 50%, 80% 100%, 20% 100%, 0 50%); border-width: 0; }
+  .sw.cyl { border-radius: 50% / 30%; }
+  .ln { width: 26px; height: 0; border-top: 2px solid var(--muted); display: inline-block; }
+  .ln.dash { border-top-style: dashed; }
+
+  section.walk { margin-top: 22px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  section.walk h2 { font-size: 18px; margin: 0; }
+  section.walk > p { margin: 0; color: var(--muted); }
+  .tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+  .tabs button { border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 5px 14px; cursor: pointer; font-size: 14px; }
+  .tabs button[aria-selected="true"] { background: var(--accent-soft); border-color: var(--accent); }
+  .steps { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+  .steps button {
+    width: 100%; height: 100%; text-align: left; border: 1px solid var(--line); background: var(--card); border-radius: 12px; padding: 12px 14px;
+    cursor: pointer; display: grid; gap: 4px; align-content: start;
+  }
+  .steps button:hover { border-color: var(--accent); }
+  .steps button[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+  .steps .n { font-size: 12px; color: var(--muted); }
+  .steps strong { font-size: 14px; }
+  .steps .t { font-size: 13px; color: var(--muted); }
+  .intro { color: var(--muted); font-size: 14px; margin: 0; }
+
+  footer { margin-top: 28px; color: var(--muted); font-size: 13px; display: grid; gap: 4px; }
+  .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 7px 14px; border-radius: 999px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .toast.on { opacity: 1; }
+
+  @media (max-width: 640px) {
+    .wrap { padding: 18px 16px 40px; }
+    .stage { height: 70vh; }
+    .toolbar .grow { flex-basis: 100%; order: 9; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1 id="title">System design</h1>
+      <p id="subtitle"></p>
+    </div>
+    <button class="theme" id="themeBtn" aria-label="Toggle light or dark theme" title="Toggle theme">
+      <svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.5a6.5 6.5 0 0 1 0 13Z" fill="currentColor"/></svg>
+    </button>
+  </header>
+
+  <div class="card">
+    <div class="toolbar">
+      <span class="grow" id="hint">Drag to pan, scroll to zoom. Hover a box for a summary; click it to open its source.</span>
+      <button class="btn icon" id="zoomOut" aria-label="Zoom out">−</button>
+      <button class="btn icon" id="zoomIn" aria-label="Zoom in">+</button>
+      <button class="btn" id="fit">Fit</button>
+      <button class="btn" id="clear" hidden>Show everything</button>
+      <button class="btn" id="copy">Copy Mermaid</button>
+      <button class="btn" id="download">Download SVG</button>
+    </div>
+    <div class="stage">
+      <div id="diagram" aria-label="System design diagram"></div>
+      <div class="loading" id="loading">Drawing the diagram…</div>
+      <div class="failed" id="failed"><div><p><strong>The diagram library didn't load.</strong></p>
+        <p>This page loads Mermaid from a CDN, so it needs internet access.<br>
+        <a href="README.md">README.md</a> has the same diagram (GitHub renders it) and <a href="diagram.mmd">diagram.mmd</a> has the source.</p></div></div>
+    </div>
+    <div class="legend">
+      <span><i class="sw round" style="background:var(--svc);border-color:var(--svc-b)"></i>Container</span>
+      <span><i class="sw" style="background:var(--fn);border-color:var(--fn-b)"></i>Function / route</span>
+      <span><i class="sw hex" style="background:var(--topic-b)"></i>Service Bus topic</span>
+      <span><i class="sw cyl" style="background:var(--store);border-color:var(--store-b)"></i>Data store</span>
+      <span><i class="sw" style="background:var(--tool);border-color:var(--tool-b)"></i>Dev tooling</span>
+      <span><i class="sw round" style="background:var(--off);border-color:var(--off-b);border-style:dashed"></i>Production only (not run locally)</span>
+      <span><i class="ln"></i>calls / sends</span>
+      <span><i class="ln dash"></i>configured connection</span>
+    </div>
+  </div>
+
+  <section class="walk" aria-labelledby="walkTitle">
+    <h2 id="walkTitle">Walkthroughs</h2>
+    <p>Pick a step to highlight the parts of the diagram it talks about.</p>
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <p class="intro" id="intro"></p>
+    <ol class="steps" id="steps"></ol>
+  </section>
+
+  <footer id="footer"></footer>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+<script>
+const DATA = /*__DIAGRAM_DATA__*/null;
+
+(() => {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+  const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+  const store = {
+    get(k) { try { return localStorage.getItem("sysdiagram:" + k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem("sysdiagram:" + k, v); } catch { /* private mode */ } },
+  };
+
+  // ---------------------------------------------------------------- page text
+  $("title").textContent = DATA.meta.title;
+  document.title = DATA.meta.title;
+  $("subtitle").innerHTML = `${DATA.meta.components} components and ${DATA.meta.arrows} connections, generated from the code ` +
+    `(${DATA.meta.graph_nodes} items in the full graph). Pinned: ` +
+    DATA.meta.submodules.map((s) => `<a href="${esc(s.url)}/tree/${esc(s.sha)}" target="_blank" rel="noopener"><code>${esc(s.path.replace("repos/", ""))}@${esc((s.sha || "").slice(0, 7))}</code></a>`).join(", ") + ".";
+  $("footer").innerHTML = `<div>Regenerate with <code>make graph</code>. Descriptions, walkthroughs and grouping live in <code>tools/graph/knowledge.json</code>.</div>
+    <div>Also here: <a href="README.md">README.md</a> (the same diagram, plus hubs and known gaps), <a href="diagram.mmd">diagram.mmd</a>, and <a href="graph.json">graph.json</a> (every function, table and subscription).</div>`;
+
+  // ---------------------------------------------------------------- theme
+  const savedTheme = store.get("theme");
+  if (savedTheme) document.documentElement.dataset.theme = savedTheme;
+  const themeName = () => document.documentElement.dataset.theme ||
+    (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+
+  // ---------------------------------------------------------------- render
+  let panZoom = null;
+  let renderSeq = 0;
+  let highlighted = null;
+
+  if (typeof mermaid === "undefined") {
+    $("loading").style.display = "none";
+    $("failed").style.display = "grid";
+  }
+
+  async function render() {
+    if (typeof mermaid === "undefined") return;
+    const dark = themeName() === "dark";
+    mermaid.initialize({
+      startOnLoad: false, securityLevel: "loose", theme: "base",
+      themeVariables: {
+        fontFamily: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif', fontSize: "14px",
+        lineColor: dark ? "#a8a29e" : "#57534e", primaryTextColor: dark ? "#ecebe6" : "#1c1917",
+        edgeLabelBackground: dark ? "#1b1b19" : "#ffffff", clusterBkg: dark ? "#1f1f1d" : "#fafaf9",
+        clusterBorder: dark ? "#44403c" : "#d6d3d1", tertiaryTextColor: dark ? "#d6d3d1" : "#44403c",
+      },
+      flowchart: {curve: "basis", htmlLabels: true, nodeSpacing: 34, rankSpacing: 70, padding: 12, diagramPadding: 16},
+    });
+    const seq = ++renderSeq;
+    const prevZoom = panZoom ? {zoom: panZoom.getZoom(), pan: panZoom.getPan()} : null;
+    const {svg, bindFunctions} = await mermaid.render("sysdiagram" + seq, dark ? DATA.mermaid.dark : DATA.mermaid.light);
+    if (seq !== renderSeq) return;
+    if (panZoom) { panZoom.destroy(); panZoom = null; }
+    const host = $("diagram");
+    host.innerHTML = svg;
+    bindFunctions?.(host);
+    $("loading").style.display = "none";
+    const el = host.querySelector("svg");
+    el.removeAttribute("style");
+    el.setAttribute("width", "100%");
+    el.setAttribute("height", "100%");
+    indexSvg(el);
+    panZoom = svgPanZoom(el, {zoomEnabled: true, controlIconsEnabled: false, fit: true, center: true, minZoom: .2, maxZoom: 12,
+      zoomScaleSensitivity: .25, dblClickZoomEnabled: true});
+    if (prevZoom) { panZoom.zoom(prevZoom.zoom); panZoom.pan(prevZoom.pan); }
+    if (highlighted) highlight(highlighted, false);
+  }
+
+  // Map diagram ids to SVG elements: nodes are "<svgid>-flowchart-<id>-<n>", clusters use the bare id,
+  // edges are "L_<from>_<to>_<n>".
+  const nodeEls = new Map(), edgeEls = new Map();
+  function indexSvg(svg) {
+    nodeEls.clear(); edgeEls.clear();
+    const ids = new Set(DATA.diagram_ids);
+    svg.querySelectorAll("g.node").forEach((g) => {
+      const m = /flowchart-(.+)-\d+$/.exec(g.id);
+      if (m && ids.has(m[1])) nodeEls.set(m[1], g);
+    });
+    svg.querySelectorAll("g.cluster").forEach((g) => { if (ids.has(g.id)) nodeEls.set(g.id, g); });
+    // Labels carry no id; Mermaid centres each one on its edge, so pair them by distance to the path's midpoint.
+    const labels = [...svg.querySelectorAll(".edgeLabels > .edgeLabel")].map((el) => {
+      const m = /translate\(([-\d.]+),\s*([-\d.]+)\)/.exec(el.getAttribute("transform") || "");
+      return m ? {el, x: +m[1], y: +m[2]} : null;
+    }).filter(Boolean);
+    svg.querySelectorAll(".edgePaths path").forEach((p) => {
+      const hit = DATA.edges.find(([a, b]) => p.id.startsWith(`L_${a}_${b}_`));
+      if (!hit) return;
+      const els = [p];
+      try {
+        const mid = p.getPointAtLength(p.getTotalLength() / 2);
+        let best = null, bestD = Infinity;
+        for (const l of labels) {
+          const d = (l.x - mid.x) ** 2 + (l.y - mid.y) ** 2;
+          if (d < bestD) { bestD = d; best = l; }
+        }
+        if (best && bestD < 60 * 60) els.push(best.el);
+      } catch { /* path without geometry */ }
+      edgeEls.set(hit[0] + ">" + hit[1], els);
+    });
+  }
+
+  function highlight(ids, move = true) {
+    const host = $("diagram");
+    host.querySelectorAll(".hl").forEach((e) => e.classList.remove("hl"));
+    highlighted = ids && ids.length ? ids : null;
+    $("clear").hidden = !highlighted;
+    if (!highlighted) { host.classList.remove("focus"); return; }
+    const set = new Set(ids);
+    host.classList.add("focus");
+    for (const id of set) nodeEls.get(id)?.classList.add("hl");
+    for (const [a, b] of DATA.edges) {
+      if (set.has(a) && set.has(b)) (edgeEls.get(a + ">" + b) || []).forEach((e) => e.classList.add("hl"));
+    }
+    if (move && panZoom) zoomTo([...set].map((i) => nodeEls.get(i)).filter(Boolean));
+  }
+
+  function zoomTo(els) {
+    if (!els.length) return;
+    const svg = $("diagram").querySelector("svg");
+    const vp = svg.querySelector(".svg-pan-zoom_viewport");
+    const inv = vp.getCTM().inverse();
+    let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+    for (const el of els) {
+      const r = el.getBoundingClientRect(), s = svg.getBoundingClientRect();
+      const p1 = new DOMPoint(r.left - s.left, r.top - s.top).matrixTransform(inv);
+      const p2 = new DOMPoint(r.right - s.left, r.bottom - s.top).matrixTransform(inv);
+      x1 = Math.min(x1, p1.x); y1 = Math.min(y1, p1.y); x2 = Math.max(x2, p2.x); y2 = Math.max(y2, p2.y);
+    }
+    const sizes = panZoom.getSizes();
+    const pad = 60;
+    const scale = Math.min(2.2, (sizes.width - 2 * pad) / (x2 - x1), (sizes.height - 2 * pad) / (y2 - y1));
+    // getSizes().realZoom = zoom * initial fit scale; work in real units, then convert.
+    const base = sizes.realZoom / panZoom.getZoom();
+    panZoom.zoom(scale / base);
+    const z = panZoom.getSizes().realZoom;
+    panZoom.pan({x: sizes.width / 2 - z * (x1 + x2) / 2, y: sizes.height / 2 - z * (y1 + y2) / 2});
+  }
+
+  // ---------------------------------------------------------------- walkthroughs
+  let tourIdx = 0, stepIdx = -1;
+  function renderTabs() {
+    $("tabs").innerHTML = DATA.tours.map((t, i) => `<button role="tab" aria-selected="${i === tourIdx}" data-tour="${i}">${esc(t.title)}</button>`).join("");
+    const t = DATA.tours[tourIdx];
+    $("intro").innerHTML = md(t.intro || "");
+    $("steps").innerHTML = t.steps.map((s, i) => `<li><button aria-pressed="${i === stepIdx}" data-step="${i}">
+      <span class="n">Step ${i + 1} of ${t.steps.length}</span><strong>${esc(s.title)}</strong><span class="t">${md(s.text)}</span></button></li>`).join("");
+  }
+  $("tabs").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-tour]");
+    if (!b) return;
+    tourIdx = +b.dataset.tour; stepIdx = -1;
+    renderTabs(); highlight(null); fit();
+  });
+  $("steps").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-step]");
+    if (!b) return;
+    const i = +b.dataset.step;
+    if (i === stepIdx) { stepIdx = -1; renderTabs(); highlight(null); fit(); return; }
+    stepIdx = i; renderTabs();
+    highlight(DATA.tours[tourIdx].steps[i].diagram);
+    $("diagram").scrollIntoView({behavior: "smooth", block: "center"});
+  });
+
+  // ---------------------------------------------------------------- toolbar
+  const fit = () => { if (panZoom) { panZoom.resize(); panZoom.fit(); panZoom.center(); } };
+  $("zoomIn").onclick = () => panZoom?.zoomIn();
+  $("zoomOut").onclick = () => panZoom?.zoomOut();
+  $("fit").onclick = fit;
+  $("clear").onclick = () => { stepIdx = -1; renderTabs(); highlight(null); fit(); };
+  const toast = (msg) => { const t = $("toast"); t.textContent = msg; t.classList.add("on"); setTimeout(() => t.classList.remove("on"), 1600); };
+  $("copy").onclick = async () => {
+    try { await navigator.clipboard.writeText(DATA.mermaid.github); toast("Mermaid code copied"); }
+    catch { toast("Copy failed: open diagram.mmd instead"); }
+  };
+  $("download").onclick = () => {
+    const svg = $("diagram").querySelector("svg");
+    if (!svg) return;
+    const clone = svg.cloneNode(true);
+    const vp = clone.querySelector(".svg-pan-zoom_viewport");
+    if (vp) { vp.removeAttribute("transform"); vp.removeAttribute("style"); }
+    clone.querySelectorAll(".hl").forEach((e) => e.classList.remove("hl"));
+    const bb = svg.querySelector(".svg-pan-zoom_viewport").getBBox();
+    clone.setAttribute("viewBox", `${bb.x - 16} ${bb.y - 16} ${bb.width + 32} ${bb.height + 32}`);
+    clone.setAttribute("width", Math.round(bb.width + 32));
+    clone.setAttribute("height", Math.round(bb.height + 32));
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    const blob = new Blob([new XMLSerializer().serializeToString(clone)], {type: "image/svg+xml"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "system-design.svg";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+  $("themeBtn").onclick = () => {
+    const next = themeName() === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = next;
+    store.set("theme", next);
+    render();
+  };
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (!document.documentElement.dataset.theme) render(); });
+  let resizeTimer;
+  window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => panZoom?.resize(), 150); });
+
+  renderTabs();
+  render().catch((err) => {
+    console.error(err);
+    $("loading").style.display = "none";
+    $("failed").style.display = "grid";
+    $("failed").querySelector("strong").textContent = "The diagram failed to render: " + err.message;
+  });
+  window.__diagram = {highlight, fit, get panZoom() { return panZoom; }, DATA};
+})();
+</script>
+</body>
+</html>

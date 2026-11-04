@@ -1,0 +1,384 @@
+<!doctype html>
+<!-- Template for docs/architecture/index.html. Edit this file, then run `make graph`; the diagram data is
+     inlined at the DIAGRAM_DATA marker so the page works from file:// with no server. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>System Design Diagram</title>
+<style>
+  :root {
+    --bg: #f5f5f3; --card: #ffffff; --text: #1c1917; --muted: #6b6560; --line: #e4e2dd; --chip: #efeee9;
+    --accent: #6d28d9; --accent-soft: #ede9fe; --shadow: 0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.06);
+    --svc: #dbeafe; --svc-b: #1d4ed8; --fn: #ede9fe; --fn-b: #6d28d9; --topic: #ffedd5; --topic-b: #c2410c;
+    --store: #dcfce7; --store-b: #15803d; --tool: #f1f5f9; --tool-b: #475569; --off: #f8fafc; --off-b: #94a3b8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121211; --card: #1b1b19; --text: #ecebe6; --muted: #a29f97; --line: #2f2e2b; --chip: #2a2926;
+      --accent: #c4b5fd; --accent-soft: #3b2a6b; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+      --svc: #1e3a8a; --svc-b: #93c5fd; --fn: #3b2a6b; --fn-b: #c4b5fd; --topic: #5a260c; --topic-b: #fdba74;
+      --store: #14532d; --store-b: #86efac; --tool: #27272a; --tool-b: #a1a1aa; --off: #1c1c1e; --off-b: #71717a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121211; --card: #1b1b19; --text: #ecebe6; --muted: #a29f97; --line: #2f2e2b; --chip: #2a2926;
+    --accent: #c4b5fd; --accent-soft: #3b2a6b; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+    --svc: #1e3a8a; --svc-b: #93c5fd; --fn: #3b2a6b; --fn-b: #c4b5fd; --topic: #5a260c; --topic-b: #fdba74;
+    --store: #14532d; --store-b: #86efac; --tool: #27272a; --tool-b: #a1a1aa; --off: #1c1c1e; --off-b: #71717a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--text); font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  code { font: .9em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--chip); padding: 0 .3em; border-radius: 4px; }
+  a { color: var(--accent); }
+  button { font: inherit; color: inherit; }
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 28px 16px 48px; }
+
+  header.top { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 18px; }
+  header.top h1 { margin: 0; font-size: clamp(22px, 3vw, 30px); letter-spacing: -.01em; }
+  header.top p { margin: 4px 0 0; color: var(--muted); max-width: 70ch; }
+  .theme { margin-left: auto; flex: none; border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 7px; cursor: pointer; line-height: 0; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; }
+  .toolbar { display: flex; align-items: center; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .toolbar .grow { flex: 1; color: var(--muted); font-size: 13px; min-width: 160px; }
+  .btn { border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: 5px 11px; cursor: pointer; font-size: 13px; white-space: nowrap; }
+  .btn:hover { border-color: var(--accent); }
+  .btn.icon { width: 32px; padding: 5px 0; text-align: center; }
+  .stage { position: relative; height: min(78vh, 900px); min-height: 420px; background:
+      radial-gradient(circle, var(--line) 1px, transparent 1px) 0 0 / 22px 22px; cursor: grab; }
+  .stage:active { cursor: grabbing; }
+  #diagram { width: 100%; height: 100%; }
+  #diagram > svg { width: 100% !important; height: 100% !important; max-width: none !important; }
+  .loading, .failed { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); text-align: center; padding: 24px; }
+  .failed { display: none; }
+
+  /* Mermaid output tweaks */
+  #diagram .node, #diagram .cluster { transition: opacity .2s; }
+  #diagram .edgePaths path, #diagram .edgeLabels > .edgeLabel { transition: opacity .2s; }
+  #diagram .node a, #diagram a .node { cursor: pointer; }
+  #diagram .node:hover rect, #diagram .node:hover polygon, #diagram .node:hover path { filter: brightness(.96); }
+  #diagram .edgeLabel, #diagram .edgeLabel p { font-size: 11px; }
+  #diagram small { font-size: 11px; opacity: .8; }
+  #diagram.focus .node:not(.hl), #diagram.focus .cluster:not(.hl) > rect { opacity: .18; }
+  #diagram.focus .edgePaths path:not(.hl), #diagram.focus .edgeLabels > .edgeLabel:not(.hl) { opacity: .1; }
+  #diagram.focus .node.hl rect, #diagram.focus .node.hl polygon, #diagram.focus .node.hl path, #diagram.focus .node.hl circle {
+    stroke-width: 3px !important; stroke: var(--accent) !important; }
+  #diagram.focus .edgePaths path.hl { stroke-width: 2.5px !important; }
+  .mermaidTooltip {
+    position: absolute; z-index: 30; max-width: 320px; padding: 6px 9px; border-radius: 8px; font-size: 12px; line-height: 1.4;
+    background: var(--card) !important; color: var(--text); border: 1px solid var(--line) !important; box-shadow: var(--shadow); pointer-events: none;
+  }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 12px 14px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .sw { width: 22px; height: 14px; border-radius: 4px; border: 1.5px solid; display: inline-block; }
+  .sw.round { border-radius: 8px; }
+  .sw.hex { clip-path: polygon(20% 0, 80% 0, 100% 50%, 80% 100%, 20% 100%, 0 50%); border-width: 0; }
+  .sw.cyl { border-radius: 50% / 30%; }
+  .ln { width: 26px; height: 0; border-top: 2px solid var(--muted); display: inline-block; }
+  .ln.dash { border-top-style: dashed; }
+
+  section.walk { margin-top: 22px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  section.walk h2 { font-size: 18px; margin: 0; }
+  section.walk > p { margin: 0; color: var(--muted); }
+  .tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+  .tabs button { border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 5px 14px; cursor: pointer; font-size: 14px; }
+  .tabs button[aria-selected="true"] { background: var(--accent-soft); border-color: var(--accent); }
+  .steps { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+  .steps button {
+    width: 100%; height: 100%; text-align: left; border: 1px solid var(--line); background: var(--card); border-radius: 12px; padding: 12px 14px;
+    cursor: pointer; display: grid; gap: 4px; align-content: start;
+  }
+  .steps button:hover { border-color: var(--accent); }
+  .steps button[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+  .steps .n { font-size: 12px; color: var(--muted); }
+  .steps strong { font-size: 14px; }
+  .steps .t { font-size: 13px; color: var(--muted); }
+  .intro { color: var(--muted); font-size: 14px; margin: 0; }
+
+  footer { margin-top: 28px; color: var(--muted); font-size: 13px; display: grid; gap: 4px; }
+  .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 7px 14px; border-radius: 999px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .toast.on { opacity: 1; }
+
+  @media (max-width: 640px) {
+    .wrap { padding: 18px 16px 40px; }
+    .stage { height: 70vh; }
+    .toolbar .grow { flex-basis: 100%; order: 9; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1 id="title">System design</h1>
+      <p id="subtitle"></p>
+    </div>
+    <button class="theme" id="themeBtn" aria-label="Toggle light or dark theme" title="Toggle theme">
+      <svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.5a6.5 6.5 0 0 1 0 13Z" fill="currentColor"/></svg>
+    </button>
+  </header>
+
+  <div class="card">
+    <div class="toolbar">
+      <span class="grow" id="hint">Drag to pan, scroll to zoom. Hover a box for a summary; click it to open its source.</span>
+      <button class="btn icon" id="zoomOut" aria-label="Zoom out">−</button>
+      <button class="btn icon" id="zoomIn" aria-label="Zoom in">+</button>
+      <button class="btn" id="fit">Fit</button>
+      <button class="btn" id="clear" hidden>Show everything</button>
+      <button class="btn" id="copy">Copy Mermaid</button>
+      <button class="btn" id="download">Download SVG</button>
+    </div>
+    <div class="stage">
+      <div id="diagram" aria-label="System design diagram"></div>
+      <div class="loading" id="loading">Drawing the diagram…</div>
+      <div class="failed" id="failed"><div><p><strong>The diagram library didn't load.</strong></p>
+        <p>This page loads Mermaid from a CDN, so it needs internet access.<br>
+        <a href="README.md">README.md</a> has the same diagram (GitHub renders it) and <a href="diagram.mmd">diagram.mmd</a> has the source.</p></div></div>
+    </div>
+    <div class="legend">
+      <span><i class="sw round" style="background:var(--svc);border-color:var(--svc-b)"></i>Container</span>
+      <span><i class="sw" style="background:var(--fn);border-color:var(--fn-b)"></i>Function / route</span>
+      <span><i class="sw hex" style="background:var(--topic-b)"></i>Service Bus topic</span>
+      <span><i class="sw cyl" style="background:var(--store);border-color:var(--store-b)"></i>Data store</span>
+      <span><i class="sw" style="background:var(--tool);border-color:var(--tool-b)"></i>Dev tooling</span>
+      <span><i class="sw round" style="background:var(--off);border-color:var(--off-b);border-style:dashed"></i>Production only (not run locally)</span>
+      <span><i class="ln"></i>calls / sends</span>
+      <span><i class="ln dash"></i>configured connection</span>
+    </div>
+  </div>
+
+  <section class="walk" aria-labelledby="walkTitle">
+    <h2 id="walkTitle">Walkthroughs</h2>
+    <p>Pick a step to highlight the parts of the diagram it talks about.</p>
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <p class="intro" id="intro"></p>
+    <ol class="steps" id="steps"></ol>
+  </section>
+
+  <footer id="footer"></footer>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+<script>
+const DATA = {"meta":{"title":"field-data-backend architecture","submodules":[{"path":"repos/wacs","url":"https://github.com/WycliffeAssociates/WACS","sha":"00b31b5376408f054396b7251b03a1b64574fb00","branch":"prod"},{"path":"repos/srp","url":"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline","sha":"d5255debf3bfade4ce1be9d4df37f77a18407f0f","branch":"master"},{"path":"repos/languageapi","url":"https://github.com/WycliffeAssociates/languageapi","sha":"0cae62328df6abb9541ee49d308c84e132bfe6bb","branch":"prod"}],"components":42,"arrows":43,"graph_nodes":154},"mermaid":{"light":"flowchart TD\n  subgraph sys_umbrella[\"Dev workflow\"]\n    grp_dev_reset[[\"make reset<br/><small>nuke → up → seed → smoke<\/small>\"]]:::tool\n    script_seed_seed_sh[[\"seed/seed.sh\"]]:::tool\n  end\n  subgraph sys_fdb[\"fdb tooling\"]\n    grp_fdb_cli[[\"fdb CLI<br/><small>tools/cli/fdb<\/small>\"]]:::tool\n    grp_fdb_core[\"fdb core<br/><small>import · put · status<\/small>\"]:::code\n    subgraph svc_fdb_api[\"fdb-api\"]\n      direction TB\n      grp_fdb_http[\"HTTP API<br/><small>/import · /repos/…/contents · /pipeline<\/small>\"]:::fn\n    end\n  end\n  subgraph sys_wacs[\"WACS\"]\n    svc_wacs(\"wacs<br/><small>built here<\/small>\"):::svc\n    svc_wacs_db[(\"wacs-db<br/><small>mariadb:10.11<\/small>\")]:::store\n    svc_wacs_redis[(\"wacs-redis<br/><small>valkey:7.2<\/small>\")]:::store\n  end\n  subgraph sys_srp[\"ScriptureRenderingPipeline\"]\n    svc_BTTWriterCatalog(\"BTTWriterCatalog<br/><small>production only<\/small>\"):::inactive\n    svc_VerseReportingProcessor(\"VerseReportingProcessor<br/><small>production only<\/small>\"):::inactive\n    subgraph svc_srp_webhook[\"srp-webhook\"]\n      direction TB\n      fn_srp_MergeWebhook[\"MergeWebhook<br/><small>HTTP /merge<\/small>\"]:::fn\n      fn_srp_Webhook[\"Webhook<br/><small>HTTP /webhook<\/small>\"]:::fn\n      grp_srp_http[\"On-demand HTTP<br/><small>RenderDoc · CheckRepoExists · (Un)RegisterWebhook<\/small>\"]:::fn\n    end\n    subgraph svc_srp_worker[\"srp-worker\"]\n      direction TB\n      fn_srp_MergeTrigger[\"MergeTrigger<br/><small>Service Bus trigger<\/small>\"]:::fn\n      fn_srp_ProgressReporting[\"ProgressReporting<br/><small>Service Bus trigger<\/small>\"]:::fn\n      fn_srp_RenderingTrigger[\"RenderingTrigger<br/><small>Service Bus trigger<\/small>\"]:::fn\n      fn_srp_RepoAnalysisTrigger[\"RepoAnalysisTrigger<br/><small>Service Bus trigger<\/small>\"]:::fn\n      grp_srp_dispatch[\"WebhookDispatcher<br/><small>Service Bus trigger ×2<\/small>\"]:::fn\n      grp_srp_renderers[\"Renderers<br/><small>Bible · tN · tQ · tW · tA · commentary<\/small>\"]:::fn\n    end\n  end\n  subgraph sys_infra[\"Azure emulation\"]\n    subgraph svc_azurite[\"azurite\"]\n      direction TB\n      blob__web[(\"$web<br/><small>blob container<\/small>\")]:::store\n      blob_template[(\"template<br/><small>blob container<\/small>\")]:::store\n    end\n    subgraph svc_servicebus[\"servicebus\"]\n      direction TB\n      topic_audiobiel{{\"audiobiel<br/><small>topic<\/small>\"}}:::topic\n      topic_mergedresult{{\"mergedresult<br/><small>topic<\/small>\"}}:::topic\n      topic_mergerequest{{\"mergerequest<br/><small>topic<\/small>\"}}:::topic\n      topic_repoanalysisresult{{\"repoanalysisresult<br/><small>topic<\/small>\"}}:::topic\n      topic_reporendered{{\"reporendered<br/><small>topic<\/small>\"}}:::topic\n      topic_versecountingresult{{\"versecountingresult<br/><small>topic<\/small>\"}}:::topic\n      topic_wacsevent{{\"wacsevent<br/><small>topic<\/small>\"}}:::topic\n    end\n  end\n  subgraph sys_languageapi[\"languageapi\"]\n    subgraph svc_lapi_controller[\"lapi-controller\"]\n      direction TB\n      fn_lapi_waAudioRenderings[\"waAudioRenderings<br/><small>Service Bus trigger<\/small>\"]:::fn\n      fn_lapi_waLangApiGitTopics[\"waLangApiGitTopics<br/><small>Service Bus trigger<\/small>\"]:::fn\n      fn_lapi_waLangApiRenderings[\"waLangApiRenderings<br/><small>Service Bus trigger<\/small>\"]:::fn\n      grp_lapi_routes[\"REST routes<br/><small>/api/language · content · git · rendering …<\/small>\"]:::fn\n      grp_lapi_timers[\"Timers<br/><small>localizations · GL USFM sources<\/small>\"]:::fn\n    end\n    svc_lapi_hasura(\"lapi-hasura<br/><small>graphql-engine:v2.30.1.cli-m<\/small>\"):::svc\n    svc_lapi_migrate(\"lapi-migrate<br/><small>built here<\/small>\"):::svc\n    svc_lapi_postgres[(\"lapi-postgres<br/><small>postgres:15.7<\/small>\")]:::store\n  end\n\n  blob_template -->|\"print.html\"| fn_srp_RenderingTrigger\n  fn_lapi_waAudioRenderings -->|\"reuses handler\"| grp_lapi_routes\n  fn_lapi_waAudioRenderings -->|\"reads/writes\"| svc_lapi_postgres\n  fn_lapi_waLangApiGitTopics -->|\"reads/writes\"| svc_lapi_postgres\n  fn_lapi_waLangApiRenderings -->|\"reuses handler\"| grp_lapi_routes\n  fn_srp_MergeTrigger -->|\"publishes to\"| topic_mergedresult\n  fn_srp_MergeWebhook -->|\"publishes to\"| topic_mergerequest\n  fn_srp_ProgressReporting -->|\"publishes to\"| topic_versecountingresult\n  fn_srp_RenderingTrigger -->|\"writes HTML, index.json, build_log.json\"| blob__web\n  fn_srp_RenderingTrigger -->|\"renders with\"| grp_srp_renderers\n  fn_srp_RenderingTrigger -->|\"publishes to\"| topic_reporendered\n  fn_srp_RepoAnalysisTrigger -->|\"publishes to\"| topic_repoanalysisresult\n  fn_srp_Webhook -->|\"publishes to\"| topic_wacsevent\n  grp_dev_reset -->|\"runs\"| script_seed_seed_sh\n  grp_fdb_core -->|\"reads build_log.json\"| blob__web\n  grp_fdb_core -->|\"GraphQL rendered_content\"| svc_lapi_hasura\n  grp_fdb_core -->|\"Gitea REST + git push\"| svc_wacs\n  grp_fdb_http -->|\"same operations\"| grp_fdb_core\n  grp_lapi_routes -->|\"reads/writes\"| svc_lapi_postgres\n  grp_lapi_timers -->|\"reads/writes\"| svc_lapi_postgres\n  script_seed_seed_sh -->|\"creates containers\"| blob__web\n  script_seed_seed_sh -->|\"creates container\"| blob_template\n  script_seed_seed_sh -->|\"reference data\"| svc_lapi_controller\n  script_seed_seed_sh -->|\"admin user, webhook, demo repo\"| svc_wacs\n  script_seed_seed_sh -->|\"token trigger SQL\"| svc_wacs_db\n  svc_lapi_hasura -->|\"reads\"| svc_lapi_postgres\n  svc_lapi_migrate -->|\"applies drizzle/*.sql\"| svc_lapi_postgres\n  svc_wacs -.->|\"links to rendered pages\"| blob__web\n  svc_wacs -->|\"repo zip\"| fn_srp_RenderingTrigger\n  svc_wacs -->|\"system webhook (push, create, repository)\"| fn_srp_Webhook\n  svc_wacs -.->|\"repo listings (API)\"| grp_lapi_timers\n  topic_audiobiel -->|\"languageapi\"| fn_lapi_waAudioRenderings\n  topic_mergedresult -->|\"NotificationHandler\"| svc_VerseReportingProcessor\n  topic_mergerequest -->|\"MergeRequest\"| fn_srp_MergeTrigger\n  topic_repoanalysisresult -->|\"WebhookDispatcher\"| grp_srp_dispatch\n  topic_reporendered -->|\"reporendered-languageapi\"| fn_lapi_waLangApiRenderings\n  topic_versecountingresult -->|\"InternalProcessor: user.success=true\"| svc_VerseReportingProcessor\n  topic_wacsevent -->|\"languageapi\"| fn_lapi_waLangApiGitTopics\n  topic_wacsevent -->|\"VerseCounting: push/fork/create\"| fn_srp_ProgressReporting\n  topic_wacsevent -->|\"RenderingWebhook: push/fork/create\"| fn_srp_RenderingTrigger\n  topic_wacsevent -->|\"RepoAnalysis\"| fn_srp_RepoAnalysisTrigger\n  topic_wacsevent -->|\"WebhookDispatcher\"| grp_srp_dispatch\n  topic_wacsevent -->|\"InternalProcessor: repo deleted\"| svc_VerseReportingProcessor\n\n  click fn_lapi_waAudioRenderings \"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/functions/audio-renderings-bus.ts#L240\" \"Consumes audiobiel (session-enabled) to record audio renderings. Nothing publishes to it locally.\" _blank\n  click fn_lapi_waLangApiGitTopics \"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/functions/bus-wacsevent-gitTopics.ts#L128\" \"For every WACSEvent (languageapi subscription), syncs the repo's Gitea topics into git_topic / repo_topic.\" _blank\n  click fn_lapi_waLangApiRenderings \"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/functions/renderings-bus.ts#L266\" \"The end of the main flow. For each RepoRendered message it upserts the git_repo, content and rendered_content rows (plus scriptural/non-scriptural metadata), reusing the handlers behind the /api/git, /api/content and /api/rendering routes. Two racing messages…\" _blank\n  click fn_srp_MergeTrigger \"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/MergeHandler.cs#L46\" \"Consumes MergeRequest, merges the USFM of several repos into one, and outputs MergedResult.\" _blank\n  click fn_srp_MergeWebhook \"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipeline/Webhook.cs#L125\" \"POST /merge. Queues a merge of several repos by publishing to MergeRequest.\" _blank\n  click fn_srp_ProgressReporting \"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/ProgressReporting.cs#L29\" \"Counts verses in pushed Bible repos (VerseCounting subscription) and publishes VerseCountingResult. Its consumer, VerseReportingProcessor, isn't run locally, so the results go nowhere here.\" _blank\n  click fn_srp_RenderingTrigger \"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/RenderingTrigger.cs#L44\" \"The heart of the pipeline. For each push/fork/create on WACSEvent (RenderingWebhook subscription) it downloads the repo zip from WACS, detects the resource type, runs the matching renderer, uploads the output and build_log.json to $web/u/<owner>/<repo>/, and…\" _blank\n  click fn_srp_RepoAnalysisTrigger \"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/RepoAnalysisTrigger.cs#L31\" \"Works out a repo's resource type and language for every WACSEvent and publishes RepoAnalysisResult.\" _blank\n  click fn_srp_Webhook \"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipeline/Webhook.cs#L31\" \"POST /webhook. Deserializes the Gitea payload, reads the event type from X-GitHub-Event, rejects repos whose host isn't AllowedDomain, and publishes a WACSMessage (repo, user, action, latest commit...) to WACSEvent.\" _blank\n  click grp_dev_reset \"https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L37\" \"One command for a fresh stack: nuke, up, seed, then smoke (health checks plus a real commit followed all the way to Hasura). Each step is also its own make target.\" _blank\n  click grp_fdb_cli \"https://github.com/AnonymousWalker/field-data-backend/blob/main/tools/fdb/cli.py\" \"fdb.cli, tools/cli/fdb\" _blank\n  click grp_fdb_core \"https://github.com/AnonymousWalker/field-data-backend/tree/main/tools/fdb\" \"fdb.clients, fdb.config, fdb.core\" _blank\n  click grp_fdb_http \"https://github.com/AnonymousWalker/field-data-backend/blob/main/tools/fdb/server.py\" \"GET /healthz, GET /repos, GET /repos/{owner}/{repo}/pipeline, POST /import, PUT /repos/{owner}/{repo}/contents/{path}, fdb.server\" _blank\n  click grp_lapi_routes \"https://github.com/WycliffeAssociates/languageapi/tree/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/routes\" \"/api/content, /api/contentWithRendering, /api/country, /api/git, /api/language, /api/region, /api/rendering\" _blank\n  click grp_lapi_timers \"https://github.com/WycliffeAssociates/languageapi/tree/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/functions\" \"manageLocalizationTable, populateGlUsfmSources\" _blank\n  click grp_srp_dispatch \"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/WebhookDispatcherTrigger.cs#L27\" \"WebhookDispatcherRepoAnalysisResultTrigger, WebhookDispatcherWACSMessageTrigger\" _blank\n  click grp_srp_http \"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/tree/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipeline\" \"CheckRepoExists, RegisterWebhook, RenderDoc, UnregisterWebhook\" _blank\n  click grp_srp_renderers \"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/tree/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/Renderers\" \"BibleRenderer, CommentaryRenderer, TranslationManualRenderer, TranslationNotesRenderer, TranslationQuestionsRenderer, TranslationWordsRenderer\" _blank\n  click script_seed_seed_sh \"https://github.com/AnonymousWalker/field-data-backend/blob/main/seed/seed.sh\" \"Idempotent seeding for the local stack. Safe to re-run; run after `make up`. 1. WACS: admin user, token-scope trigger, system webhook -> SRP 2. Azurite: SRP output/template containers + print template 3. languageapi: minimal reference data (region, country,…\" _blank\n  click svc_BTTWriterCatalog \"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/tree/d5255debf3bfade4ce1be9d4df37f77a18407f0f/BTTWriterCatalog\" \"Builds the BTT Writer, BIEL and unfoldingWord catalogs from Cosmos DB change-feed triggers. It runs in production but not here, because it needs Cosmos DB.\" _blank\n  click svc_VerseReportingProcessor \"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/tree/d5255debf3bfade4ce1be9d4df37f77a18407f0f/VerseReportingProcessor\" \"Consumes verse-counting results and merge notifications and reports them to PORT/Dataverse. It runs in production but not here: it needs a SQL Server stored procedure that isn't in the repo, plus PORT/Dataverse.\" _blank\n  click svc_lapi_hasura \"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/languageapi.yaml#L36\" \"Hasura GraphQL engine serving the public read API. The metadata (tracked tables, permissions, REST endpoints) is mounted read-only from repos/languageapi/hasura/metadata.\" _blank\n  click svc_lapi_migrate \"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/languageapi.yaml#L22\" \"One-shot job (target `migrate` of docker/languageapi/controller.Dockerfile). It applies controller/drizzle/*.sql, then exits. Hasura and the controller wait for it to complete successfully.\" _blank\n  click svc_lapi_postgres \"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/languageapi.yaml#L8\" \"Postgres 15 with the languageapi data. The schema is owned by the Drizzle migrations that lapi-migrate applies.\" _blank\n  click svc_wacs \"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/wacs.yaml#L3\" \"Gitea (WACS build) serving the web UI and API on :3000. Translators push here; every push/create/repository event goes to SRP through a system webhook that `make seed` registers. Config is the upstream repos/wacs/.env with config/wacs.env layered on top.\" _blank\n  click svc_wacs_db \"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/wacs.yaml#L35\" \"MariaDB 10.11 holding Gitea's database. The seed applies seed/sql/wacs-token-trigger.sql here, because the upstream trigger script fails on MariaDB.\" _blank\n  click svc_wacs_redis \"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/wacs.yaml#L52\" \"Valkey (Redis-compatible) for Gitea's cache, queues and sessions.\" _blank\n  click topic_audiobiel \"https://github.com/AnonymousWalker/field-data-backend/blob/main/config/servicebus/Config.json#L325\" \"Audio renderings for BIEL. Declared so the controller's consumer can start; nothing publishes locally.\" _blank\n  click topic_mergedresult \"https://github.com/AnonymousWalker/field-data-backend/blob/main/config/servicebus/Config.json#L292\" \"Finished merges. Consumed by the NotificationHandler in VerseReportingProcessor (not run locally).\" _blank\n  click topic_mergerequest \"https://github.com/AnonymousWalker/field-data-backend/blob/main/config/servicebus/Config.json#L259\" \"Merge jobs queued by POST /merge.\" _blank\n  click topic_repoanalysisresult \"https://github.com/AnonymousWalker/field-data-backend/blob/main/config/servicebus/Config.json#L193\" \"Resource type and language detected for a repo. Consumed by the WebhookDispatcher.\" _blank\n  click topic_reporendered \"https://github.com/AnonymousWalker/field-data-backend/blob/main/config/servicebus/Config.json#L160\" \"Published by RenderingTrigger after every render, successful or not. languageapi listens here to record what was rendered.\" _blank\n  click topic_versecountingresult \"https://github.com/AnonymousWalker/field-data-backend/blob/main/config/servicebus/Config.json#L226\" \"Verse counts per pushed Bible repo. Only successful counts reach InternalProcessor (VerseReportingProcessor, not run locally).\" _blank\n  click topic_wacsevent \"https://github.com/AnonymousWalker/field-data-backend/blob/main/config/servicebus/Config.json#L9\" \"The fan-out point. One message per WACS webhook, copied to every subscription: render, verse count, analysis, webhook dispatch, languageapi topics, and deletes for the verse processor. Subscriptions filter on the eventType/Action application properties.\" _blank\n\n  classDef svc fill:#dbeafe,stroke:#1d4ed8,color:#0b1b3a,stroke-width:1.5px\n  classDef fn fill:#ede9fe,stroke:#6d28d9,color:#1e1033,stroke-width:1.5px\n  classDef topic fill:#ffedd5,stroke:#c2410c,color:#3a1606,stroke-width:1.5px\n  classDef store fill:#dcfce7,stroke:#15803d,color:#062612,stroke-width:1.5px\n  classDef code fill:#e0f2fe,stroke:#0369a1,color:#082032,stroke-width:1.5px\n  classDef tool fill:#f1f5f9,stroke:#475569,color:#0f172a,stroke-width:1.5px\n  classDef inactive fill:#f8fafc,stroke:#94a3b8,color:#64748b,stroke-width:1.5px,stroke-dasharray:5 4\n  style sys_umbrella fill:#fafaf9,stroke:#d6d3d1,color:#44403c\n  style sys_fdb fill:#fafaf9,stroke:#d6d3d1,color:#44403c\n  style sys_wacs fill:#fafaf9,stroke:#d6d3d1,color:#44403c\n  style sys_srp fill:#fafaf9,stroke:#d6d3d1,color:#44403c\n  style sys_infra fill:#fafaf9,stroke:#d6d3d1,color:#44403c\n  style sys_languageapi fill:#fafaf9,stroke:#d6d3d1,color:#44403c\n  style svc_azurite fill:#f5f9ff,stroke:#93c5fd,color:#1e3a8a,stroke-width:1.5px\n  style svc_fdb_api fill:#f5f9ff,stroke:#93c5fd,color:#1e3a8a,stroke-width:1.5px\n  style svc_lapi_controller fill:#f5f9ff,stroke:#93c5fd,color:#1e3a8a,stroke-width:1.5px\n  style svc_servicebus fill:#f5f9ff,stroke:#93c5fd,color:#1e3a8a,stroke-width:1.5px\n  style svc_srp_webhook fill:#f5f9ff,stroke:#93c5fd,color:#1e3a8a,stroke-width:1.5px\n  style svc_srp_worker fill:#f5f9ff,stroke:#93c5fd,color:#1e3a8a,stroke-width:1.5px\n","dark":"flowchart TD\n  subgraph sys_umbrella[\"Dev workflow\"]\n    grp_dev_reset[[\"make reset<br/><small>nuke → up → seed → smoke<\/small>\"]]:::tool\n    script_seed_seed_sh[[\"seed/seed.sh\"]]:::tool\n  end\n  subgraph sys_fdb[\"fdb tooling\"]\n    grp_fdb_cli[[\"fdb CLI<br/><small>tools/cli/fdb<\/small>\"]]:::tool\n    grp_fdb_core[\"fdb core<br/><small>import · put · status<\/small>\"]:::code\n    subgraph svc_fdb_api[\"fdb-api\"]\n      direction TB\n      grp_fdb_http[\"HTTP API<br/><small>/import · /repos/…/contents · /pipeline<\/small>\"]:::fn\n    end\n  end\n  subgraph sys_wacs[\"WACS\"]\n    svc_wacs(\"wacs<br/><small>built here<\/small>\"):::svc\n    svc_wacs_db[(\"wacs-db<br/><small>mariadb:10.11<\/small>\")]:::store\n    svc_wacs_redis[(\"wacs-redis<br/><small>valkey:7.2<\/small>\")]:::store\n  end\n  subgraph sys_srp[\"ScriptureRenderingPipeline\"]\n    svc_BTTWriterCatalog(\"BTTWriterCatalog<br/><small>production only<\/small>\"):::inactive\n    svc_VerseReportingProcessor(\"VerseReportingProcessor<br/><small>production only<\/small>\"):::inactive\n    subgraph svc_srp_webhook[\"srp-webhook\"]\n      direction TB\n      fn_srp_MergeWebhook[\"MergeWebhook<br/><small>HTTP /merge<\/small>\"]:::fn\n      fn_srp_Webhook[\"Webhook<br/><small>HTTP /webhook<\/small>\"]:::fn\n      grp_srp_http[\"On-demand HTTP<br/><small>RenderDoc · CheckRepoExists · (Un)RegisterWebhook<\/small>\"]:::fn\n    end\n    subgraph svc_srp_worker[\"srp-worker\"]\n      direction TB\n      fn_srp_MergeTrigger[\"MergeTrigger<br/><small>Service Bus trigger<\/small>\"]:::fn\n      fn_srp_ProgressReporting[\"ProgressReporting<br/><small>Service Bus trigger<\/small>\"]:::fn\n      fn_srp_RenderingTrigger[\"RenderingTrigger<br/><small>Service Bus trigger<\/small>\"]:::fn\n      fn_srp_RepoAnalysisTrigger[\"RepoAnalysisTrigger<br/><small>Service Bus trigger<\/small>\"]:::fn\n      grp_srp_dispatch[\"WebhookDispatcher<br/><small>Service Bus trigger ×2<\/small>\"]:::fn\n      grp_srp_renderers[\"Renderers<br/><small>Bible · tN · tQ · tW · tA · commentary<\/small>\"]:::fn\n    end\n  end\n  subgraph sys_infra[\"Azure emulation\"]\n    subgraph svc_azurite[\"azurite\"]\n      direction TB\n      blob__web[(\"$web<br/><small>blob container<\/small>\")]:::store\n      blob_template[(\"template<br/><small>blob container<\/small>\")]:::store\n    end\n    subgraph svc_servicebus[\"servicebus\"]\n      direction TB\n      topic_audiobiel{{\"audiobiel<br/><small>topic<\/small>\"}}:::topic\n      topic_mergedresult{{\"mergedresult<br/><small>topic<\/small>\"}}:::topic\n      topic_mergerequest{{\"mergerequest<br/><small>topic<\/small>\"}}:::topic\n      topic_repoanalysisresult{{\"repoanalysisresult<br/><small>topic<\/small>\"}}:::topic\n      topic_reporendered{{\"reporendered<br/><small>topic<\/small>\"}}:::topic\n      topic_versecountingresult{{\"versecountingresult<br/><small>topic<\/small>\"}}:::topic\n      topic_wacsevent{{\"wacsevent<br/><small>topic<\/small>\"}}:::topic\n    end\n  end\n  subgraph sys_languageapi[\"languageapi\"]\n    subgraph svc_lapi_controller[\"lapi-controller\"]\n      direction TB\n      fn_lapi_waAudioRenderings[\"waAudioRenderings<br/><small>Service Bus trigger<\/small>\"]:::fn\n      fn_lapi_waLangApiGitTopics[\"waLangApiGitTopics<br/><small>Service Bus trigger<\/small>\"]:::fn\n      fn_lapi_waLangApiRenderings[\"waLangApiRenderings<br/><small>Service Bus trigger<\/small>\"]:::fn\n      grp_lapi_routes[\"REST routes<br/><small>/api/language · content · git · rendering …<\/small>\"]:::fn\n      grp_lapi_timers[\"Timers<br/><small>localizations · GL USFM sources<\/small>\"]:::fn\n    end\n    svc_lapi_hasura(\"lapi-hasura<br/><small>graphql-engine:v2.30.1.cli-m<\/small>\"):::svc\n    svc_lapi_migrate(\"lapi-migrate<br/><small>built here<\/small>\"):::svc\n    svc_lapi_postgres[(\"lapi-postgres<br/><small>postgres:15.7<\/small>\")]:::store\n  end\n\n  blob_template -->|\"print.html\"| fn_srp_RenderingTrigger\n  fn_lapi_waAudioRenderings -->|\"reuses handler\"| grp_lapi_routes\n  fn_lapi_waAudioRenderings -->|\"reads/writes\"| svc_lapi_postgres\n  fn_lapi_waLangApiGitTopics -->|\"reads/writes\"| svc_lapi_postgres\n  fn_lapi_waLangApiRenderings -->|\"reuses handler\"| grp_lapi_routes\n  fn_srp_MergeTrigger -->|\"publishes to\"| topic_mergedresult\n  fn_srp_MergeWebhook -->|\"publishes to\"| topic_mergerequest\n  fn_srp_ProgressReporting -->|\"publishes to\"| topic_versecountingresult\n  fn_srp_RenderingTrigger -->|\"writes HTML, index.json, build_log.json\"| blob__web\n  fn_srp_RenderingTrigger -->|\"renders with\"| grp_srp_renderers\n  fn_srp_RenderingTrigger -->|\"publishes to\"| topic_reporendered\n  fn_srp_RepoAnalysisTrigger -->|\"publishes to\"| topic_repoanalysisresult\n  fn_srp_Webhook -->|\"publishes to\"| topic_wacsevent\n  grp_dev_reset -->|\"runs\"| script_seed_seed_sh\n  grp_fdb_core -->|\"reads build_log.json\"| blob__web\n  grp_fdb_core -->|\"GraphQL rendered_content\"| svc_lapi_hasura\n  grp_fdb_core -->|\"Gitea REST + git push\"| svc_wacs\n  grp_fdb_http -->|\"same operations\"| grp_fdb_core\n  grp_lapi_routes -->|\"reads/writes\"| svc_lapi_postgres\n  grp_lapi_timers -->|\"reads/writes\"| svc_lapi_postgres\n  script_seed_seed_sh -->|\"creates containers\"| blob__web\n  script_seed_seed_sh -->|\"creates container\"| blob_template\n  script_seed_seed_sh -->|\"reference data\"| svc_lapi_controller\n  script_seed_seed_sh -->|\"admin user, webhook, demo repo\"| svc_wacs\n  script_seed_seed_sh -->|\"token trigger SQL\"| svc_wacs_db\n  svc_lapi_hasura -->|\"reads\"| svc_lapi_postgres\n  svc_lapi_migrate -->|\"applies drizzle/*.sql\"| svc_lapi_postgres\n  svc_wacs -.->|\"links to rendered pages\"| blob__web\n  svc_wacs -->|\"repo zip\"| fn_srp_RenderingTrigger\n  svc_wacs -->|\"system webhook (push, create, repository)\"| fn_srp_Webhook\n  svc_wacs -.->|\"repo listings (API)\"| grp_lapi_timers\n  topic_audiobiel -->|\"languageapi\"| fn_lapi_waAudioRenderings\n  topic_mergedresult -->|\"NotificationHandler\"| svc_VerseReportingProcessor\n  topic_mergerequest -->|\"MergeRequest\"| fn_srp_MergeTrigger\n  topic_repoanalysisresult -->|\"WebhookDispatcher\"| grp_srp_dispatch\n  topic_reporendered -->|\"reporendered-languageapi\"| fn_lapi_waLangApiRenderings\n  topic_versecountingresult -->|\"InternalProcessor: user.success=true\"| svc_VerseReportingProcessor\n  topic_wacsevent -->|\"languageapi\"| fn_lapi_waLangApiGitTopics\n  topic_wacsevent -->|\"VerseCounting: push/fork/create\"| fn_srp_ProgressReporting\n  topic_wacsevent -->|\"RenderingWebhook: push/fork/create\"| fn_srp_RenderingTrigger\n  topic_wacsevent -->|\"RepoAnalysis\"| fn_srp_RepoAnalysisTrigger\n  topic_wacsevent -->|\"WebhookDispatcher\"| grp_srp_dispatch\n  topic_wacsevent -->|\"InternalProcessor: repo deleted\"| svc_VerseReportingProcessor\n\n  click fn_lapi_waAudioRenderings \"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/functions/audio-renderings-bus.ts#L240\" \"Consumes audiobiel (session-enabled) to record audio renderings. Nothing publishes to it locally.\" _blank\n  click fn_lapi_waLangApiGitTopics \"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/functions/bus-wacsevent-gitTopics.ts#L128\" \"For every WACSEvent (languageapi subscription), syncs the repo's Gitea topics into git_topic / repo_topic.\" _blank\n  click fn_lapi_waLangApiRenderings \"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/functions/renderings-bus.ts#L266\" \"The end of the main flow. For each RepoRendered message it upserts the git_repo, content and rendered_content rows (plus scriptural/non-scriptural metadata), reusing the handlers behind the /api/git, /api/content and /api/rendering routes. Two racing messages…\" _blank\n  click fn_srp_MergeTrigger \"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/MergeHandler.cs#L46\" \"Consumes MergeRequest, merges the USFM of several repos into one, and outputs MergedResult.\" _blank\n  click fn_srp_MergeWebhook \"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipeline/Webhook.cs#L125\" \"POST /merge. Queues a merge of several repos by publishing to MergeRequest.\" _blank\n  click fn_srp_ProgressReporting \"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/ProgressReporting.cs#L29\" \"Counts verses in pushed Bible repos (VerseCounting subscription) and publishes VerseCountingResult. Its consumer, VerseReportingProcessor, isn't run locally, so the results go nowhere here.\" _blank\n  click fn_srp_RenderingTrigger \"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/RenderingTrigger.cs#L44\" \"The heart of the pipeline. For each push/fork/create on WACSEvent (RenderingWebhook subscription) it downloads the repo zip from WACS, detects the resource type, runs the matching renderer, uploads the output and build_log.json to $web/u/<owner>/<repo>/, and…\" _blank\n  click fn_srp_RepoAnalysisTrigger \"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/RepoAnalysisTrigger.cs#L31\" \"Works out a repo's resource type and language for every WACSEvent and publishes RepoAnalysisResult.\" _blank\n  click fn_srp_Webhook \"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipeline/Webhook.cs#L31\" \"POST /webhook. Deserializes the Gitea payload, reads the event type from X-GitHub-Event, rejects repos whose host isn't AllowedDomain, and publishes a WACSMessage (repo, user, action, latest commit...) to WACSEvent.\" _blank\n  click grp_dev_reset \"https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L37\" \"One command for a fresh stack: nuke, up, seed, then smoke (health checks plus a real commit followed all the way to Hasura). Each step is also its own make target.\" _blank\n  click grp_fdb_cli \"https://github.com/AnonymousWalker/field-data-backend/blob/main/tools/fdb/cli.py\" \"fdb.cli, tools/cli/fdb\" _blank\n  click grp_fdb_core \"https://github.com/AnonymousWalker/field-data-backend/tree/main/tools/fdb\" \"fdb.clients, fdb.config, fdb.core\" _blank\n  click grp_fdb_http \"https://github.com/AnonymousWalker/field-data-backend/blob/main/tools/fdb/server.py\" \"GET /healthz, GET /repos, GET /repos/{owner}/{repo}/pipeline, POST /import, PUT /repos/{owner}/{repo}/contents/{path}, fdb.server\" _blank\n  click grp_lapi_routes \"https://github.com/WycliffeAssociates/languageapi/tree/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/routes\" \"/api/content, /api/contentWithRendering, /api/country, /api/git, /api/language, /api/region, /api/rendering\" _blank\n  click grp_lapi_timers \"https://github.com/WycliffeAssociates/languageapi/tree/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/functions\" \"manageLocalizationTable, populateGlUsfmSources\" _blank\n  click grp_srp_dispatch \"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/WebhookDispatcherTrigger.cs#L27\" \"WebhookDispatcherRepoAnalysisResultTrigger, WebhookDispatcherWACSMessageTrigger\" _blank\n  click grp_srp_http \"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/tree/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipeline\" \"CheckRepoExists, RegisterWebhook, RenderDoc, UnregisterWebhook\" _blank\n  click grp_srp_renderers \"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/tree/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/Renderers\" \"BibleRenderer, CommentaryRenderer, TranslationManualRenderer, TranslationNotesRenderer, TranslationQuestionsRenderer, TranslationWordsRenderer\" _blank\n  click script_seed_seed_sh \"https://github.com/AnonymousWalker/field-data-backend/blob/main/seed/seed.sh\" \"Idempotent seeding for the local stack. Safe to re-run; run after `make up`. 1. WACS: admin user, token-scope trigger, system webhook -> SRP 2. Azurite: SRP output/template containers + print template 3. languageapi: minimal reference data (region, country,…\" _blank\n  click svc_BTTWriterCatalog \"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/tree/d5255debf3bfade4ce1be9d4df37f77a18407f0f/BTTWriterCatalog\" \"Builds the BTT Writer, BIEL and unfoldingWord catalogs from Cosmos DB change-feed triggers. It runs in production but not here, because it needs Cosmos DB.\" _blank\n  click svc_VerseReportingProcessor \"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/tree/d5255debf3bfade4ce1be9d4df37f77a18407f0f/VerseReportingProcessor\" \"Consumes verse-counting results and merge notifications and reports them to PORT/Dataverse. It runs in production but not here: it needs a SQL Server stored procedure that isn't in the repo, plus PORT/Dataverse.\" _blank\n  click svc_lapi_hasura \"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/languageapi.yaml#L36\" \"Hasura GraphQL engine serving the public read API. The metadata (tracked tables, permissions, REST endpoints) is mounted read-only from repos/languageapi/hasura/metadata.\" _blank\n  click svc_lapi_migrate \"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/languageapi.yaml#L22\" \"One-shot job (target `migrate` of docker/languageapi/controller.Dockerfile). It applies controller/drizzle/*.sql, then exits. Hasura and the controller wait for it to complete successfully.\" _blank\n  click svc_lapi_postgres \"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/languageapi.yaml#L8\" \"Postgres 15 with the languageapi data. The schema is owned by the Drizzle migrations that lapi-migrate applies.\" _blank\n  click svc_wacs \"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/wacs.yaml#L3\" \"Gitea (WACS build) serving the web UI and API on :3000. Translators push here; every push/create/repository event goes to SRP through a system webhook that `make seed` registers. Config is the upstream repos/wacs/.env with config/wacs.env layered on top.\" _blank\n  click svc_wacs_db \"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/wacs.yaml#L35\" \"MariaDB 10.11 holding Gitea's database. The seed applies seed/sql/wacs-token-trigger.sql here, because the upstream trigger script fails on MariaDB.\" _blank\n  click svc_wacs_redis \"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/wacs.yaml#L52\" \"Valkey (Redis-compatible) for Gitea's cache, queues and sessions.\" _blank\n  click topic_audiobiel \"https://github.com/AnonymousWalker/field-data-backend/blob/main/config/servicebus/Config.json#L325\" \"Audio renderings for BIEL. Declared so the controller's consumer can start; nothing publishes locally.\" _blank\n  click topic_mergedresult \"https://github.com/AnonymousWalker/field-data-backend/blob/main/config/servicebus/Config.json#L292\" \"Finished merges. Consumed by the NotificationHandler in VerseReportingProcessor (not run locally).\" _blank\n  click topic_mergerequest \"https://github.com/AnonymousWalker/field-data-backend/blob/main/config/servicebus/Config.json#L259\" \"Merge jobs queued by POST /merge.\" _blank\n  click topic_repoanalysisresult \"https://github.com/AnonymousWalker/field-data-backend/blob/main/config/servicebus/Config.json#L193\" \"Resource type and language detected for a repo. Consumed by the WebhookDispatcher.\" _blank\n  click topic_reporendered \"https://github.com/AnonymousWalker/field-data-backend/blob/main/config/servicebus/Config.json#L160\" \"Published by RenderingTrigger after every render, successful or not. languageapi listens here to record what was rendered.\" _blank\n  click topic_versecountingresult \"https://github.com/AnonymousWalker/field-data-backend/blob/main/config/servicebus/Config.json#L226\" \"Verse counts per pushed Bible repo. Only successful counts reach InternalProcessor (VerseReportingProcessor, not run locally).\" _blank\n  click topic_wacsevent \"https://github.com/AnonymousWalker/field-data-backend/blob/main/config/servicebus/Config.json#L9\" \"The fan-out point. One message per WACS webhook, copied to every subscription: render, verse count, analysis, webhook dispatch, languageapi topics, and deletes for the verse processor. Subscriptions filter on the eventType/Action application properties.\" _blank\n\n  classDef svc fill:#1e3a8a,stroke:#93c5fd,color:#eff6ff,stroke-width:1.5px\n  classDef fn fill:#3b2a6b,stroke:#c4b5fd,color:#f5f3ff,stroke-width:1.5px\n  classDef topic fill:#5a260c,stroke:#fdba74,color:#fff7ed,stroke-width:1.5px\n  classDef store fill:#14532d,stroke:#86efac,color:#f0fdf4,stroke-width:1.5px\n  classDef code fill:#0c3b55,stroke:#7dd3fc,color:#f0f9ff,stroke-width:1.5px\n  classDef tool fill:#27272a,stroke:#a1a1aa,color:#fafafa,stroke-width:1.5px\n  classDef inactive fill:#1c1c1e,stroke:#71717a,color:#a1a1aa,stroke-width:1.5px,stroke-dasharray:5 4\n  style sys_umbrella fill:#1f1f1d,stroke:#44403c,color:#d6d3d1\n  style sys_fdb fill:#1f1f1d,stroke:#44403c,color:#d6d3d1\n  style sys_wacs fill:#1f1f1d,stroke:#44403c,color:#d6d3d1\n  style sys_srp fill:#1f1f1d,stroke:#44403c,color:#d6d3d1\n  style sys_infra fill:#1f1f1d,stroke:#44403c,color:#d6d3d1\n  style sys_languageapi fill:#1f1f1d,stroke:#44403c,color:#d6d3d1\n  style svc_azurite fill:#18202e,stroke:#3f5f9f,color:#bfdbfe,stroke-width:1.5px\n  style svc_fdb_api fill:#18202e,stroke:#3f5f9f,color:#bfdbfe,stroke-width:1.5px\n  style svc_lapi_controller fill:#18202e,stroke:#3f5f9f,color:#bfdbfe,stroke-width:1.5px\n  style svc_servicebus fill:#18202e,stroke:#3f5f9f,color:#bfdbfe,stroke-width:1.5px\n  style svc_srp_webhook fill:#18202e,stroke:#3f5f9f,color:#bfdbfe,stroke-width:1.5px\n  style svc_srp_worker fill:#18202e,stroke:#3f5f9f,color:#bfdbfe,stroke-width:1.5px\n","github":"flowchart TD\n  subgraph sys_umbrella[\"Dev workflow\"]\n    grp_dev_reset[[\"make reset<br/>nuke → up → seed → smoke\"]]:::tool\n    script_seed_seed_sh[[\"seed/seed.sh\"]]:::tool\n  end\n  subgraph sys_fdb[\"fdb tooling\"]\n    grp_fdb_cli[[\"fdb CLI<br/>tools/cli/fdb\"]]:::tool\n    grp_fdb_core[\"fdb core<br/>import · put · status\"]:::code\n    subgraph svc_fdb_api[\"fdb-api\"]\n      direction TB\n      grp_fdb_http[\"HTTP API<br/>/import · /repos/…/contents · /pipeline\"]:::fn\n    end\n  end\n  subgraph sys_wacs[\"WACS\"]\n    svc_wacs(\"wacs<br/>built here\"):::svc\n    svc_wacs_db[(\"wacs-db<br/>mariadb:10.11\")]:::store\n    svc_wacs_redis[(\"wacs-redis<br/>valkey:7.2\")]:::store\n  end\n  subgraph sys_srp[\"ScriptureRenderingPipeline\"]\n    svc_BTTWriterCatalog(\"BTTWriterCatalog<br/>production only\"):::inactive\n    svc_VerseReportingProcessor(\"VerseReportingProcessor<br/>production only\"):::inactive\n    subgraph svc_srp_webhook[\"srp-webhook\"]\n      direction TB\n      fn_srp_MergeWebhook[\"MergeWebhook<br/>HTTP /merge\"]:::fn\n      fn_srp_Webhook[\"Webhook<br/>HTTP /webhook\"]:::fn\n      grp_srp_http[\"On-demand HTTP<br/>RenderDoc · CheckRepoExists · (Un)RegisterWebhook\"]:::fn\n    end\n    subgraph svc_srp_worker[\"srp-worker\"]\n      direction TB\n      fn_srp_MergeTrigger[\"MergeTrigger<br/>Service Bus trigger\"]:::fn\n      fn_srp_ProgressReporting[\"ProgressReporting<br/>Service Bus trigger\"]:::fn\n      fn_srp_RenderingTrigger[\"RenderingTrigger<br/>Service Bus trigger\"]:::fn\n      fn_srp_RepoAnalysisTrigger[\"RepoAnalysisTrigger<br/>Service Bus trigger\"]:::fn\n      grp_srp_dispatch[\"WebhookDispatcher<br/>Service Bus trigger ×2\"]:::fn\n      grp_srp_renderers[\"Renderers<br/>Bible · tN · tQ · tW · tA · commentary\"]:::fn\n    end\n  end\n  subgraph sys_infra[\"Azure emulation\"]\n    subgraph svc_azurite[\"azurite\"]\n      direction TB\n      blob__web[(\"$web<br/>blob container\")]:::store\n      blob_template[(\"template<br/>blob container\")]:::store\n    end\n    subgraph svc_servicebus[\"servicebus\"]\n      direction TB\n      topic_audiobiel{{\"audiobiel<br/>topic\"}}:::topic\n      topic_mergedresult{{\"mergedresult<br/>topic\"}}:::topic\n      topic_mergerequest{{\"mergerequest<br/>topic\"}}:::topic\n      topic_repoanalysisresult{{\"repoanalysisresult<br/>topic\"}}:::topic\n      topic_reporendered{{\"reporendered<br/>topic\"}}:::topic\n      topic_versecountingresult{{\"versecountingresult<br/>topic\"}}:::topic\n      topic_wacsevent{{\"wacsevent<br/>topic\"}}:::topic\n    end\n  end\n  subgraph sys_languageapi[\"languageapi\"]\n    subgraph svc_lapi_controller[\"lapi-controller\"]\n      direction TB\n      fn_lapi_waAudioRenderings[\"waAudioRenderings<br/>Service Bus trigger\"]:::fn\n      fn_lapi_waLangApiGitTopics[\"waLangApiGitTopics<br/>Service Bus trigger\"]:::fn\n      fn_lapi_waLangApiRenderings[\"waLangApiRenderings<br/>Service Bus trigger\"]:::fn\n      grp_lapi_routes[\"REST routes<br/>/api/language · content · git · rendering …\"]:::fn\n      grp_lapi_timers[\"Timers<br/>localizations · GL USFM sources\"]:::fn\n    end\n    svc_lapi_hasura(\"lapi-hasura<br/>graphql-engine:v2.30.1.cli-m\"):::svc\n    svc_lapi_migrate(\"lapi-migrate<br/>built here\"):::svc\n    svc_lapi_postgres[(\"lapi-postgres<br/>postgres:15.7\")]:::store\n  end\n\n  blob_template -->|\"print.html\"| fn_srp_RenderingTrigger\n  fn_lapi_waAudioRenderings -->|\"reuses handler\"| grp_lapi_routes\n  fn_lapi_waAudioRenderings -->|\"reads/writes\"| svc_lapi_postgres\n  fn_lapi_waLangApiGitTopics -->|\"reads/writes\"| svc_lapi_postgres\n  fn_lapi_waLangApiRenderings -->|\"reuses handler\"| grp_lapi_routes\n  fn_srp_MergeTrigger -->|\"publishes to\"| topic_mergedresult\n  fn_srp_MergeWebhook -->|\"publishes to\"| topic_mergerequest\n  fn_srp_ProgressReporting -->|\"publishes to\"| topic_versecountingresult\n  fn_srp_RenderingTrigger -->|\"writes HTML, index.json, build_log.json\"| blob__web\n  fn_srp_RenderingTrigger -->|\"renders with\"| grp_srp_renderers\n  fn_srp_RenderingTrigger -->|\"publishes to\"| topic_reporendered\n  fn_srp_RepoAnalysisTrigger -->|\"publishes to\"| topic_repoanalysisresult\n  fn_srp_Webhook -->|\"publishes to\"| topic_wacsevent\n  grp_dev_reset -->|\"runs\"| script_seed_seed_sh\n  grp_fdb_core -->|\"reads build_log.json\"| blob__web\n  grp_fdb_core -->|\"GraphQL rendered_content\"| svc_lapi_hasura\n  grp_fdb_core -->|\"Gitea REST + git push\"| svc_wacs\n  grp_fdb_http -->|\"same operations\"| grp_fdb_core\n  grp_lapi_routes -->|\"reads/writes\"| svc_lapi_postgres\n  grp_lapi_timers -->|\"reads/writes\"| svc_lapi_postgres\n  script_seed_seed_sh -->|\"creates containers\"| blob__web\n  script_seed_seed_sh -->|\"creates container\"| blob_template\n  script_seed_seed_sh -->|\"reference data\"| svc_lapi_controller\n  script_seed_seed_sh -->|\"admin user, webhook, demo repo\"| svc_wacs\n  script_seed_seed_sh -->|\"token trigger SQL\"| svc_wacs_db\n  svc_lapi_hasura -->|\"reads\"| svc_lapi_postgres\n  svc_lapi_migrate -->|\"applies drizzle/*.sql\"| svc_lapi_postgres\n  svc_wacs -.->|\"links to rendered pages\"| blob__web\n  svc_wacs -->|\"repo zip\"| fn_srp_RenderingTrigger\n  svc_wacs -->|\"system webhook (push, create, repository)\"| fn_srp_Webhook\n  svc_wacs -.->|\"repo listings (API)\"| grp_lapi_timers\n  topic_audiobiel -->|\"languageapi\"| fn_lapi_waAudioRenderings\n  topic_mergedresult -->|\"NotificationHandler\"| svc_VerseReportingProcessor\n  topic_mergerequest -->|\"MergeRequest\"| fn_srp_MergeTrigger\n  topic_repoanalysisresult -->|\"WebhookDispatcher\"| grp_srp_dispatch\n  topic_reporendered -->|\"reporendered-languageapi\"| fn_lapi_waLangApiRenderings\n  topic_versecountingresult -->|\"InternalProcessor: user.success=true\"| svc_VerseReportingProcessor\n  topic_wacsevent -->|\"languageapi\"| fn_lapi_waLangApiGitTopics\n  topic_wacsevent -->|\"VerseCounting: push/fork/create\"| fn_srp_ProgressReporting\n  topic_wacsevent -->|\"RenderingWebhook: push/fork/create\"| fn_srp_RenderingTrigger\n  topic_wacsevent -->|\"RepoAnalysis\"| fn_srp_RepoAnalysisTrigger\n  topic_wacsevent -->|\"WebhookDispatcher\"| grp_srp_dispatch\n  topic_wacsevent -->|\"InternalProcessor: repo deleted\"| svc_VerseReportingProcessor\n\n  classDef svc fill:#dbeafe,stroke:#1d4ed8,color:#0b1b3a,stroke-width:1.5px\n  classDef fn fill:#ede9fe,stroke:#6d28d9,color:#1e1033,stroke-width:1.5px\n  classDef topic fill:#ffedd5,stroke:#c2410c,color:#3a1606,stroke-width:1.5px\n  classDef store fill:#dcfce7,stroke:#15803d,color:#062612,stroke-width:1.5px\n  classDef code fill:#e0f2fe,stroke:#0369a1,color:#082032,stroke-width:1.5px\n  classDef tool fill:#f1f5f9,stroke:#475569,color:#0f172a,stroke-width:1.5px\n  classDef inactive fill:#f8fafc,stroke:#94a3b8,color:#64748b,stroke-width:1.5px,stroke-dasharray:5 4\n  style sys_umbrella fill:#fafaf9,stroke:#d6d3d1,color:#44403c\n  style sys_fdb fill:#fafaf9,stroke:#d6d3d1,color:#44403c\n  style sys_wacs fill:#fafaf9,stroke:#d6d3d1,color:#44403c\n  style sys_srp fill:#fafaf9,stroke:#d6d3d1,color:#44403c\n  style sys_infra fill:#fafaf9,stroke:#d6d3d1,color:#44403c\n  style sys_languageapi fill:#fafaf9,stroke:#d6d3d1,color:#44403c\n  style svc_azurite fill:#f5f9ff,stroke:#93c5fd,color:#1e3a8a,stroke-width:1.5px\n  style svc_fdb_api fill:#f5f9ff,stroke:#93c5fd,color:#1e3a8a,stroke-width:1.5px\n  style svc_lapi_controller fill:#f5f9ff,stroke:#93c5fd,color:#1e3a8a,stroke-width:1.5px\n  style svc_servicebus fill:#f5f9ff,stroke:#93c5fd,color:#1e3a8a,stroke-width:1.5px\n  style svc_srp_webhook fill:#f5f9ff,stroke:#93c5fd,color:#1e3a8a,stroke-width:1.5px\n  style svc_srp_worker fill:#f5f9ff,stroke:#93c5fd,color:#1e3a8a,stroke-width:1.5px\n"},"edges":[["blob_template","fn_srp_RenderingTrigger"],["fn_lapi_waAudioRenderings","grp_lapi_routes"],["fn_lapi_waAudioRenderings","svc_lapi_postgres"],["fn_lapi_waLangApiGitTopics","svc_lapi_postgres"],["fn_lapi_waLangApiRenderings","grp_lapi_routes"],["fn_srp_MergeTrigger","topic_mergedresult"],["fn_srp_MergeWebhook","topic_mergerequest"],["fn_srp_ProgressReporting","topic_versecountingresult"],["fn_srp_RenderingTrigger","blob__web"],["fn_srp_RenderingTrigger","grp_srp_renderers"],["fn_srp_RenderingTrigger","topic_reporendered"],["fn_srp_RepoAnalysisTrigger","topic_repoanalysisresult"],["fn_srp_Webhook","topic_wacsevent"],["grp_dev_reset","script_seed_seed_sh"],["grp_fdb_core","blob__web"],["grp_fdb_core","svc_lapi_hasura"],["grp_fdb_core","svc_wacs"],["grp_fdb_http","grp_fdb_core"],["grp_lapi_routes","svc_lapi_postgres"],["grp_lapi_timers","svc_lapi_postgres"],["script_seed_seed_sh","blob__web"],["script_seed_seed_sh","blob_template"],["script_seed_seed_sh","svc_lapi_controller"],["script_seed_seed_sh","svc_wacs"],["script_seed_seed_sh","svc_wacs_db"],["svc_lapi_hasura","svc_lapi_postgres"],["svc_lapi_migrate","svc_lapi_postgres"],["svc_wacs","blob__web"],["svc_wacs","fn_srp_RenderingTrigger"],["svc_wacs","fn_srp_Webhook"],["svc_wacs","grp_lapi_timers"],["topic_audiobiel","fn_lapi_waAudioRenderings"],["topic_mergedresult","svc_VerseReportingProcessor"],["topic_mergerequest","fn_srp_MergeTrigger"],["topic_repoanalysisresult","grp_srp_dispatch"],["topic_reporendered","fn_lapi_waLangApiRenderings"],["topic_versecountingresult","svc_VerseReportingProcessor"],["topic_wacsevent","fn_lapi_waLangApiGitTopics"],["topic_wacsevent","fn_srp_ProgressReporting"],["topic_wacsevent","fn_srp_RenderingTrigger"],["topic_wacsevent","fn_srp_RepoAnalysisTrigger"],["topic_wacsevent","grp_srp_dispatch"],["topic_wacsevent","svc_VerseReportingProcessor"]],"diagram_ids":["blob__web","blob_template","fn_lapi_waAudioRenderings","fn_lapi_waLangApiGitTopics","fn_lapi_waLangApiRenderings","fn_srp_MergeTrigger","fn_srp_MergeWebhook","fn_srp_ProgressReporting","fn_srp_RenderingTrigger","fn_srp_RepoAnalysisTrigger","fn_srp_Webhook","grp_dev_reset","grp_fdb_cli","grp_fdb_core","grp_fdb_http","grp_lapi_routes","grp_lapi_timers","grp_srp_dispatch","grp_srp_http","grp_srp_renderers","script_seed_seed_sh","svc_BTTWriterCatalog","svc_VerseReportingProcessor","svc_azurite","svc_fdb_api","svc_lapi_controller","svc_lapi_hasura","svc_lapi_migrate","svc_lapi_postgres","svc_servicebus","svc_srp_webhook","svc_srp_worker","svc_wacs","svc_wacs_db","svc_wacs_redis","topic_audiobiel","topic_mergedresult","topic_mergerequest","topic_repoanalysisresult","topic_reporendered","topic_versecountingresult","topic_wacsevent"],"tours":[{"title":"A commit's journey","intro":"What happens between `git push` and the change showing up in the public API. This is the flow the whole repo exists to reproduce, and what `make smoke` and `fdb status` check.","steps":[{"title":"A translator pushes to WACS.","text":"WACS is Gitea. Locally the push comes from you, `make smoke`, or `fdb put`, which all commit through the Gitea API. That counts as a push like any other.","diagram":["grp_dev_reset","grp_fdb_core","svc_wacs"]},{"title":"Gitea calls SRP's webhook.","text":"`make seed` registers a system webhook, so every repo's push, create and repository events go to http://srp-webhook/webhook. The webhook function checks the repo's host and builds a WACSMessage. A brand-new repo fires both `create` and `push`, so it renders twice.","diagram":["fn_srp_Webhook","svc_srp_webhook","svc_wacs"]},{"title":"One message, many subscribers.","text":"The message goes to the WACSEvent topic. Service Bus copies it to every subscription whose filter matches: rendering and verse counting only take push/fork/create, while analysis, the webhook dispatcher and languageapi take everything. The routing is all in config/servicebus/Config.json.","diagram":["fn_lapi_waLangApiGitTopics","fn_srp_ProgressReporting","fn_srp_RenderingTrigger","fn_srp_RepoAnalysisTrigger","fn_srp_Webhook","grp_srp_dispatch","svc_VerseReportingProcessor","topic_wacsevent"]},{"title":"The worker renders.","text":"RenderingTrigger downloads the repo zip from WACS, picks a renderer from the manifest's resource type (Bible, notes, words, questions...), and writes the pages, index.json and build_log.json to $web/u/<owner>/<repo>/.","diagram":["blob__web","blob_template","fn_srp_RenderingTrigger","grp_srp_renderers","svc_wacs","topic_wacsevent"]},{"title":"SRP announces RepoRendered.","text":"Win or lose, the worker publishes a RenderingResultMessage with a Success property. Anyone can subscribe; locally the only subscriber is languageapi.","diagram":["fn_srp_RenderingTrigger","topic_reporendered"]},{"title":"languageapi records it.","text":"The controller's waLangApiRenderings function upserts git_repo, content and one rendered_content row per file, reusing the same handlers as the REST routes. Meanwhile waLangApiGitTopics has synced the repo's topics from its own WACSEvent subscription.","diagram":["fn_lapi_waLangApiGitTopics","fn_lapi_waLangApiRenderings","grp_lapi_routes","svc_lapi_postgres"]},{"title":"Hasura serves it.","text":"Hasura exposes the tables read-only over GraphQL. The smoke test and `fdb status` both query rendered_content here to prove the change made it all the way through.","diagram":["grp_dev_reset","grp_fdb_core","svc_lapi_hasura","svc_lapi_postgres"]}]},{"title":"Bringing the stack up","intro":"What `make reset` actually does, and why services start in the order they do.","steps":[{"title":"make reset = nuke, up, seed, smoke.","text":"Each step is its own target, so you can rerun any of them alone. `make nuke` drops every named volume; `make down` keeps them.","diagram":["grp_dev_reset"]},{"title":"Infrastructure first.","text":"Azurite and the Service Bus emulator (on SQL Server) start first. The emulator image has no shell, so sb-health probes it and the Functions apps wait on sb-health.","diagram":["svc_azurite","svc_servicebus"]},{"title":"Databases and migrations.","text":"MariaDB and Valkey come up for WACS. Postgres for languageapi gets the Drizzle migrations from the one-shot lapi-migrate job, and Hasura and the controller only start once it has completed successfully.","diagram":["svc_lapi_controller","svc_lapi_hasura","svc_lapi_migrate","svc_lapi_postgres","svc_wacs_db","svc_wacs_redis"]},{"title":"Apps built from the submodules.","text":"WACS, both SRP apps and the languageapi controller are built from the pinned code in repos/. Where an upstream Dockerfile doesn't work, the umbrella's own Dockerfile in docker/ replaces it. Nothing in the submodules is modified.","diagram":["svc_srp_webhook","svc_srp_worker","svc_wacs"]},{"title":"Seed wires the systems together.","text":"The seed creates the admin user, installs the token trigger, registers the WACS → SRP webhook, creates the blob containers, posts reference data to languageapi, and creates the demo repo. That repo's first commit is the first trip through the pipeline.","diagram":["blob__web","blob_template","script_seed_seed_sh","svc_lapi_controller","svc_wacs","svc_wacs_db"]},{"title":"Smoke proves it.","text":"Health checks for every service, then a real commit followed until it appears in Hasura. If this passes, the stack works.","diagram":["blob__web","grp_dev_reset","script_seed_seed_sh","svc_lapi_hasura"]}]},{"title":"Testing with real repos (fdb)","intro":"How the fdb CLI and HTTP API import, edit and follow a repo, and which systems they touch.","steps":[{"title":"Two front ends, one core.","text":"`tools/cli/fdb` runs on your machine; fdb-api runs the same package in a container on :7080. Both call fdb.core, so every operation returns the same dict.","diagram":["grp_fdb_cli","grp_fdb_core","grp_fdb_http","svc_fdb_api"]},{"title":"Import.","text":"Clones the source repo, creates it in the local WACS and pushes. The push fires the webhook, so the import renders like any other push. Pushing anywhere other than the local WACS is refused.","diagram":["grp_fdb_core","grp_fdb_http","svc_wacs"]},{"title":"Put.","text":"Replaces one file in one commit through the Gitea contents API, just like a real push.","diagram":["grp_fdb_core","grp_fdb_http","svc_wacs"]},{"title":"Status.","text":"Checks three stages for a commit: it's in WACS, $web's build_log.json names it (render), and Hasura's rendered_content was updated after that render ended (languageapi).","diagram":["blob__web","grp_fdb_core","grp_fdb_http","svc_lapi_hasura","svc_lapi_postgres","svc_wacs"]}]}]};
+
+(() => {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+  const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+  const store = {
+    get(k) { try { return localStorage.getItem("sysdiagram:" + k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem("sysdiagram:" + k, v); } catch { /* private mode */ } },
+  };
+
+  // ---------------------------------------------------------------- page text
+  $("title").textContent = DATA.meta.title;
+  document.title = DATA.meta.title;
+  $("subtitle").innerHTML = `${DATA.meta.components} components and ${DATA.meta.arrows} connections, generated from the code ` +
+    `(${DATA.meta.graph_nodes} items in the full graph). Pinned: ` +
+    DATA.meta.submodules.map((s) => `<a href="${esc(s.url)}/tree/${esc(s.sha)}" target="_blank" rel="noopener"><code>${esc(s.path.replace("repos/", ""))}@${esc((s.sha || "").slice(0, 7))}</code></a>`).join(", ") + ".";
+  $("footer").innerHTML = `<div>Regenerate with <code>make graph</code>. Descriptions, walkthroughs and grouping live in <code>tools/graph/knowledge.json</code>.</div>
+    <div>Also here: <a href="README.md">README.md</a> (the same diagram, plus hubs and known gaps), <a href="diagram.mmd">diagram.mmd</a>, and <a href="graph.json">graph.json</a> (every function, table and subscription).</div>`;
+
+  // ---------------------------------------------------------------- theme
+  const savedTheme = store.get("theme");
+  if (savedTheme) document.documentElement.dataset.theme = savedTheme;
+  const themeName = () => document.documentElement.dataset.theme ||
+    (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+
+  // ---------------------------------------------------------------- render
+  let panZoom = null;
+  let renderSeq = 0;
+  let highlighted = null;
+
+  if (typeof mermaid === "undefined") {
+    $("loading").style.display = "none";
+    $("failed").style.display = "grid";
+  }
+
+  async function render() {
+    if (typeof mermaid === "undefined") return;
+    const dark = themeName() === "dark";
+    mermaid.initialize({
+      startOnLoad: false, securityLevel: "loose", theme: "base",
+      themeVariables: {
+        fontFamily: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif', fontSize: "14px",
+        lineColor: dark ? "#a8a29e" : "#57534e", primaryTextColor: dark ? "#ecebe6" : "#1c1917",
+        edgeLabelBackground: dark ? "#1b1b19" : "#ffffff", clusterBkg: dark ? "#1f1f1d" : "#fafaf9",
+        clusterBorder: dark ? "#44403c" : "#d6d3d1", tertiaryTextColor: dark ? "#d6d3d1" : "#44403c",
+      },
+      flowchart: {curve: "basis", htmlLabels: true, nodeSpacing: 34, rankSpacing: 70, padding: 12, diagramPadding: 16},
+    });
+    const seq = ++renderSeq;
+    const prevZoom = panZoom ? {zoom: panZoom.getZoom(), pan: panZoom.getPan()} : null;
+    const {svg, bindFunctions} = await mermaid.render("sysdiagram" + seq, dark ? DATA.mermaid.dark : DATA.mermaid.light);
+    if (seq !== renderSeq) return;
+    if (panZoom) { panZoom.destroy(); panZoom = null; }
+    const host = $("diagram");
+    host.innerHTML = svg;
+    bindFunctions?.(host);
+    $("loading").style.display = "none";
+    const el = host.querySelector("svg");
+    el.removeAttribute("style");
+    el.setAttribute("width", "100%");
+    el.setAttribute("height", "100%");
+    indexSvg(el);
+    panZoom = svgPanZoom(el, {zoomEnabled: true, controlIconsEnabled: false, fit: true, center: true, minZoom: .2, maxZoom: 12,
+      zoomScaleSensitivity: .25, dblClickZoomEnabled: true});
+    if (prevZoom) { panZoom.zoom(prevZoom.zoom); panZoom.pan(prevZoom.pan); }
+    if (highlighted) highlight(highlighted, false);
+  }
+
+  // Map diagram ids to SVG elements: nodes are "<svgid>-flowchart-<id>-<n>", clusters use the bare id,
+  // edges are "L_<from>_<to>_<n>".
+  const nodeEls = new Map(), edgeEls = new Map();
+  function indexSvg(svg) {
+    nodeEls.clear(); edgeEls.clear();
+    const ids = new Set(DATA.diagram_ids);
+    svg.querySelectorAll("g.node").forEach((g) => {
+      const m = /flowchart-(.+)-\d+$/.exec(g.id);
+      if (m && ids.has(m[1])) nodeEls.set(m[1], g);
+    });
+    svg.querySelectorAll("g.cluster").forEach((g) => { if (ids.has(g.id)) nodeEls.set(g.id, g); });
+    // Labels carry no id; Mermaid centres each one on its edge, so pair them by distance to the path's midpoint.
+    const labels = [...svg.querySelectorAll(".edgeLabels > .edgeLabel")].map((el) => {
+      const m = /translate\(([-\d.]+),\s*([-\d.]+)\)/.exec(el.getAttribute("transform") || "");
+      return m ? {el, x: +m[1], y: +m[2]} : null;
+    }).filter(Boolean);
+    svg.querySelectorAll(".edgePaths path").forEach((p) => {
+      const hit = DATA.edges.find(([a, b]) => p.id.startsWith(`L_${a}_${b}_`));
+      if (!hit) return;
+      const els = [p];
+      try {
+        const mid = p.getPointAtLength(p.getTotalLength() / 2);
+        let best = null, bestD = Infinity;
+        for (const l of labels) {
+          const d = (l.x - mid.x) ** 2 + (l.y - mid.y) ** 2;
+          if (d < bestD) { bestD = d; best = l; }
+        }
+        if (best && bestD < 60 * 60) els.push(best.el);
+      } catch { /* path without geometry */ }
+      edgeEls.set(hit[0] + ">" + hit[1], els);
+    });
+  }
+
+  function highlight(ids, move = true) {
+    const host = $("diagram");
+    host.querySelectorAll(".hl").forEach((e) => e.classList.remove("hl"));
+    highlighted = ids && ids.length ? ids : null;
+    $("clear").hidden = !highlighted;
+    if (!highlighted) { host.classList.remove("focus"); return; }
+    const set = new Set(ids);
+    host.classList.add("focus");
+    for (const id of set) nodeEls.get(id)?.classList.add("hl");
+    for (const [a, b] of DATA.edges) {
+      if (set.has(a) && set.has(b)) (edgeEls.get(a + ">" + b) || []).forEach((e) => e.classList.add("hl"));
+    }
+    if (move && panZoom) zoomTo([...set].map((i) => nodeEls.get(i)).filter(Boolean));
+  }
+
+  function zoomTo(els) {
+    if (!els.length) return;
+    const svg = $("diagram").querySelector("svg");
+    const vp = svg.querySelector(".svg-pan-zoom_viewport");
+    const inv = vp.getCTM().inverse();
+    let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+    for (const el of els) {
+      const r = el.getBoundingClientRect(), s = svg.getBoundingClientRect();
+      const p1 = new DOMPoint(r.left - s.left, r.top - s.top).matrixTransform(inv);
+      const p2 = new DOMPoint(r.right - s.left, r.bottom - s.top).matrixTransform(inv);
+      x1 = Math.min(x1, p1.x); y1 = Math.min(y1, p1.y); x2 = Math.max(x2, p2.x); y2 = Math.max(y2, p2.y);
+    }
+    const sizes = panZoom.getSizes();
+    const pad = 60;
+    const scale = Math.min(2.2, (sizes.width - 2 * pad) / (x2 - x1), (sizes.height - 2 * pad) / (y2 - y1));
+    // getSizes().realZoom = zoom * initial fit scale; work in real units, then convert.
+    const base = sizes.realZoom / panZoom.getZoom();
+    panZoom.zoom(scale / base);
+    const z = panZoom.getSizes().realZoom;
+    panZoom.pan({x: sizes.width / 2 - z * (x1 + x2) / 2, y: sizes.height / 2 - z * (y1 + y2) / 2});
+  }
+
+  // ---------------------------------------------------------------- walkthroughs
+  let tourIdx = 0, stepIdx = -1;
+  function renderTabs() {
+    $("tabs").innerHTML = DATA.tours.map((t, i) => `<button role="tab" aria-selected="${i === tourIdx}" data-tour="${i}">${esc(t.title)}</button>`).join("");
+    const t = DATA.tours[tourIdx];
+    $("intro").innerHTML = md(t.intro || "");
+    $("steps").innerHTML = t.steps.map((s, i) => `<li><button aria-pressed="${i === stepIdx}" data-step="${i}">
+      <span class="n">Step ${i + 1} of ${t.steps.length}</span><strong>${esc(s.title)}</strong><span class="t">${md(s.text)}</span></button></li>`).join("");
+  }
+  $("tabs").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-tour]");
+    if (!b) return;
+    tourIdx = +b.dataset.tour; stepIdx = -1;
+    renderTabs(); highlight(null); fit();
+  });
+  $("steps").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-step]");
+    if (!b) return;
+    const i = +b.dataset.step;
+    if (i === stepIdx) { stepIdx = -1; renderTabs(); highlight(null); fit(); return; }
+    stepIdx = i; renderTabs();
+    highlight(DATA.tours[tourIdx].steps[i].diagram);
+    $("diagram").scrollIntoView({behavior: "smooth", block: "center"});
+  });
+
+  // ---------------------------------------------------------------- toolbar
+  const fit = () => { if (panZoom) { panZoom.resize(); panZoom.fit(); panZoom.center(); } };
+  $("zoomIn").onclick = () => panZoom?.zoomIn();
+  $("zoomOut").onclick = () => panZoom?.zoomOut();
+  $("fit").onclick = fit;
+  $("clear").onclick = () => { stepIdx = -1; renderTabs(); highlight(null); fit(); };
+  const toast = (msg) => { const t = $("toast"); t.textContent = msg; t.classList.add("on"); setTimeout(() => t.classList.remove("on"), 1600); };
+  $("copy").onclick = async () => {
+    try { await navigator.clipboard.writeText(DATA.mermaid.github); toast("Mermaid code copied"); }
+    catch { toast("Copy failed: open diagram.mmd instead"); }
+  };
+  $("download").onclick = () => {
+    const svg = $("diagram").querySelector("svg");
+    if (!svg) return;
+    const clone = svg.cloneNode(true);
+    const vp = clone.querySelector(".svg-pan-zoom_viewport");
+    if (vp) { vp.removeAttribute("transform"); vp.removeAttribute("style"); }
+    clone.querySelectorAll(".hl").forEach((e) => e.classList.remove("hl"));
+    const bb = svg.querySelector(".svg-pan-zoom_viewport").getBBox();
+    clone.setAttribute("viewBox", `${bb.x - 16} ${bb.y - 16} ${bb.width + 32} ${bb.height + 32}`);
+    clone.setAttribute("width", Math.round(bb.width + 32));
+    clone.setAttribute("height", Math.round(bb.height + 32));
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    const blob = new Blob([new XMLSerializer().serializeToString(clone)], {type: "image/svg+xml"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "system-design.svg";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+  $("themeBtn").onclick = () => {
+    const next = themeName() === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = next;
+    store.set("theme", next);
+    render();
+  };
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (!document.documentElement.dataset.theme) render(); });
+  let resizeTimer;
+  window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => panZoom?.resize(), 150); });
+
+  renderTabs();
+  render().catch((err) => {
+    console.error(err);
+    $("loading").style.display = "none";
+    $("failed").style.display = "grid";
+    $("failed").querySelector("strong").textContent = "The diagram failed to render: " + err.message;
+  });
+  window.__diagram = {highlight, fit, get panZoom() { return panZoom; }, DATA};
+})();
+</script>
+</body>
+</html>

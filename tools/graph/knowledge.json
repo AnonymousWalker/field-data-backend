@@ -1,0 +1,789 @@
+{
+  "title": "field-data-backend architecture",
+  "repo_url": "https://github.com/AnonymousWalker/field-data-backend",
+  "systems": {
+    "wacs": {
+      "label": "WACS",
+      "desc": "WA Content Service: a WA-branded Gitea 1.23 where translation teams push content repos (Bibles, notes, words...). It is where every change starts. Each push fires a system webhook at SRP. Runs on MariaDB (wacs-db) with Valkey for cache, queue and sessions (wacs-redis).",
+      "submodule": "repos/wacs"
+    },
+    "srp": {
+      "label": "ScriptureRenderingPipeline",
+      "desc": "SRP: .NET 10 isolated Azure Functions. srp-webhook is the front door: it turns a Gitea webhook into a WACSEvent message. srp-worker consumes those messages, renders the repo to static HTML in blob storage and announces RepoRendered. Other projects in the repo (catalogs, verse reporting) run in production but not here.",
+      "submodule": "repos/srp"
+    },
+    "languageapi": {
+      "label": "languageapi",
+      "desc": "The public catalogue of languages, content and renderings. Postgres holds the data, with the schema owned by Drizzle migrations. Hasura serves it read-only over GraphQL and REST. The controller (Node Azure Functions) writes to it: REST routes for reference data, Service Bus consumers for pipeline events, and timers.",
+      "submodule": "repos/languageapi"
+    },
+    "infra": {
+      "label": "Azure emulation",
+      "desc": "Local stand-ins for the Azure services production uses. Azurite provides blob, queue and table storage, and AzureWebJobsStorage for every Functions app. The Service Bus emulator, backed by SQL Server, routes every message between the systems. Its topics, subscriptions and filters are all in config/servicebus/Config.json."
+    },
+    "fdb": {
+      "label": "fdb tooling",
+      "desc": "Helper owned by this repo for testing with real content. It imports a repo into the local WACS, edits a file in one commit, and follows that commit through WACS, render and languageapi. There's a CLI on the host (tools/cli/fdb) and an HTTP API in a container (fdb-api), and both use one stdlib-only Python package (tools/fdb)."
+    },
+    "umbrella": {
+      "label": "Dev workflow",
+      "desc": "How you drive the stack: make targets, the seed and smoke scripts, and the pinned submodules. `make reset` is the one command that matters on day one."
+    }
+  },
+  "node_kinds": {
+    "system": {
+      "label": "System",
+      "desc": "A whole project (or this repo's own tooling). Boxes group everything inside."
+    },
+    "service": {
+      "label": "Container",
+      "desc": "A docker compose service. Dashed outline: deployed in production, not run locally."
+    },
+    "function": {
+      "label": "Function / route",
+      "desc": "An Azure Function (HTTP, Service Bus or timer trigger) or an HTTP route."
+    },
+    "endpoint": {
+      "label": "Endpoint",
+      "desc": "An HTTP endpoint exposed by a service."
+    },
+    "topic": {
+      "label": "Topic",
+      "desc": "A Service Bus topic. Publishers send here; every subscription gets a copy."
+    },
+    "subscription": {
+      "label": "Subscription",
+      "desc": "A Service Bus subscription: a filtered copy of a topic that one consumer reads."
+    },
+    "table": {
+      "label": "Table / view",
+      "desc": "A Postgres table or view in the languageapi database."
+    },
+    "blob": {
+      "label": "Blob container",
+      "desc": "An Azurite blob container."
+    },
+    "volume": {
+      "label": "Volume",
+      "desc": "A named docker volume. `make nuke` deletes these."
+    },
+    "module": {
+      "label": "Code module",
+      "desc": "A source module or class worth knowing about."
+    },
+    "file": {
+      "label": "Config / file",
+      "desc": "A config file, Dockerfile or directory that shapes the stack."
+    },
+    "script": {
+      "label": "Script",
+      "desc": "A shell or Python entry point you run."
+    },
+    "make": {
+      "label": "make target",
+      "desc": "A Makefile target. Start here."
+    }
+  },
+  "edge_kinds": {
+    "publishes": {
+      "label": "publishes to",
+      "flow": true,
+      "desc": "Sends messages to a Service Bus topic."
+    },
+    "delivers": {
+      "label": "delivers to",
+      "flow": true,
+      "desc": "A topic copies each message to a subscription (label = filter)."
+    },
+    "triggers": {
+      "label": "triggers",
+      "flow": true,
+      "desc": "A subscription invokes this consumer for each message."
+    },
+    "calls": {
+      "label": "calls",
+      "flow": true,
+      "desc": "Direct call: HTTP, a function call, or a script running a command."
+    },
+    "uses": {
+      "label": "connects to",
+      "flow": false,
+      "desc": "Runtime connection, from the service's environment (URLs, connection strings)."
+    },
+    "reads_writes": {
+      "label": "reads/writes",
+      "flow": false,
+      "desc": "Touches this table (from code references)."
+    },
+    "exposes": {
+      "label": "exposes",
+      "flow": false,
+      "desc": "Serves this table or endpoint."
+    },
+    "fk": {
+      "label": "foreign key",
+      "flow": false,
+      "desc": "Table references another table."
+    },
+    "depends_on": {
+      "label": "starts after",
+      "flow": false,
+      "desc": "Compose startup order (depends_on + condition)."
+    },
+    "stores": {
+      "label": "stores data in",
+      "flow": false,
+      "desc": "Mounts a named volume."
+    },
+    "mounts": {
+      "label": "mounts",
+      "flow": false,
+      "desc": "Bind-mounts a file/dir from this repo, or reads it as env_file."
+    },
+    "built_by": {
+      "label": "built by",
+      "flow": false,
+      "desc": "The Dockerfile that builds this service's image."
+    },
+    "imports": {
+      "label": "imports",
+      "flow": false,
+      "desc": "Python import."
+    },
+    "runs": {
+      "label": "runs",
+      "flow": true,
+      "desc": "A make target runs a script, compose, or another target."
+    }
+  },
+  "nodes": {
+    "svc:wacs": {
+      "desc": "Gitea (WACS build) serving the web UI and API on :3000. Translators push here; every push/create/repository event goes to SRP through a system webhook that `make seed` registers. Config is the upstream repos/wacs/.env with config/wacs.env layered on top.",
+      "links": [
+        {
+          "label": "Open WACS",
+          "url": "http://localhost:3000/fielddata/en_ulb"
+        },
+        {
+          "label": "API health",
+          "url": "http://localhost:3000/api/healthz"
+        }
+      ],
+      "tips": [
+        "Login fdbadmin / fdbadmin123 (seeded).",
+        "Set WACS_PREBUILT=1 to use the published image if the Go build can't reach the module proxy."
+      ]
+    },
+    "svc:wacs-db": {
+      "desc": "MariaDB 10.11 holding Gitea's database. The seed applies seed/sql/wacs-token-trigger.sql here, because the upstream trigger script fails on MariaDB."
+    },
+    "svc:wacs-redis": {
+      "desc": "Valkey (Redis-compatible) for Gitea's cache, queues and sessions."
+    },
+    "svc:srp-webhook": {
+      "desc": "SRP front door (project ScriptureRenderingPipeline). POST /webhook validates a Gitea webhook (the repo host must equal AllowedDomain=localhost) and publishes a WACSMessage to the WACSEvent topic. It doesn't render anything itself.",
+      "links": [
+        {
+          "label": "Webhook (POST only)",
+          "url": "http://localhost:7071/webhook"
+        }
+      ],
+      "tips": [
+        "`make logs S=srp-webhook`. A 400 for garbage input is healthy (the smoke test checks for it)."
+      ]
+    },
+    "svc:srp-worker": {
+      "desc": "SRP rendering worker (project ScriptureRenderingPipelineWorker). It handles Service Bus messages only and has no public port. RenderingTrigger downloads the repo zip from WACS, picks a renderer from the resource type, writes HTML + index.json + build_log.json to the $web blob container, then publishes RepoRendered.",
+      "tips": [
+        "`make logs S=srp-worker` is the first place to look when a render doesn't show up.",
+        "Gitea credentials are keyed by the host in html_url (Gitea__localhost__*)."
+      ]
+    },
+    "svc:BTTWriterCatalog": {
+      "desc": "Builds the BTT Writer, BIEL and unfoldingWord catalogs from Cosmos DB change-feed triggers. It runs in production but not here, because it needs Cosmos DB."
+    },
+    "svc:VerseReportingProcessor": {
+      "desc": "Consumes verse-counting results and merge notifications and reports them to PORT/Dataverse. It runs in production but not here: it needs a SQL Server stored procedure that isn't in the repo, plus PORT/Dataverse."
+    },
+    "svc:lapi-postgres": {
+      "desc": "Postgres 15 with the languageapi data. The schema is owned by the Drizzle migrations that lapi-migrate applies."
+    },
+    "svc:lapi-migrate": {
+      "desc": "One-shot job (target `migrate` of docker/languageapi/controller.Dockerfile). It applies controller/drizzle/*.sql, then exits. Hasura and the controller wait for it to complete successfully."
+    },
+    "svc:lapi-hasura": {
+      "desc": "Hasura GraphQL engine serving the public read API. The metadata (tracked tables, permissions, REST endpoints) is mounted read-only from repos/languageapi/hasura/metadata.",
+      "links": [
+        {
+          "label": "Hasura console",
+          "url": "http://localhost:8080/console"
+        }
+      ],
+      "tips": [
+        "Two objects are inconsistent by design: vw_consolidated_repos and the Consolidated Repos REST endpoint. No migration creates that view."
+      ]
+    },
+    "svc:lapi-controller": {
+      "desc": "languageapi's write side (Node Azure Functions v4, built by the umbrella's controller.Dockerfile). REST routes under /api/* take reference data. Service Bus consumers record renderings and git topics. Timers backfill localizations and GL USFM sources. NODE_ENV is left unset on purpose, so it uses the production subscription names.",
+      "links": [
+        {
+          "label": "GET /api/language",
+          "url": "http://localhost:7072/api/language"
+        }
+      ]
+    },
+    "svc:azurite": {
+      "desc": "Azure Storage emulator (blob :10000, queue :10001, table :10002). It holds the rendered site in $web and serves as AzureWebJobsStorage for every Functions host.",
+      "links": [
+        {
+          "label": "Rendered demo page",
+          "url": "http://localhost:10000/devstoreaccount1/$web/u/fielddata/en_ulb/JUD/1.html"
+        }
+      ]
+    },
+    "svc:sb-sql": {
+      "desc": "SQL Server 2022, the Service Bus emulator's storage backend."
+    },
+    "svc:servicebus": {
+      "desc": "Azure Service Bus emulator (AMQP :5672, management :5300). Every arrow between WACS, SRP and languageapi after the first webhook goes through here. It reads its topology from config/servicebus/Config.json, which is translated from repos/srp/infra/main.bicep."
+    },
+    "svc:sb-health": {
+      "desc": "Sidecar that waits for the emulator's /health endpoint. The emulator image has no shell for a healthcheck, so the Functions apps depend on this instead."
+    },
+    "svc:tools": {
+      "desc": "On-demand Azure CLI (compose profile `tools`). The seed uses it to create blob containers and upload the print template. Try `docker compose run --rm tools az storage blob list -c '$web'`."
+    },
+    "svc:fdb-api": {
+      "desc": "The fdb HTTP helper on 127.0.0.1:7080, with no auth. It does the same operations as the CLI, as JSON. tools/ is bind-mounted, so code edits apply on restart. Imported mirrors live in the fdb_imports volume.",
+      "links": [
+        {
+          "label": "Health",
+          "url": "http://127.0.0.1:7080/healthz"
+        },
+        {
+          "label": "List repos",
+          "url": "http://127.0.0.1:7080/repos"
+        }
+      ]
+    },
+    "fn:srp/Webhook": {
+      "desc": "POST /webhook. Deserializes the Gitea payload, reads the event type from X-GitHub-Event, rejects repos whose host isn't AllowedDomain, and publishes a WACSMessage (repo, user, action, latest commit...) to WACSEvent."
+    },
+    "fn:srp/MergeWebhook": {
+      "desc": "POST /merge. Queues a merge of several repos by publishing to MergeRequest."
+    },
+    "fn:srp/RenderDoc": {
+      "desc": "HTTP: renders a repo into a single document (for print/PDF) on demand, using the USFM renderer."
+    },
+    "fn:srp/CheckRepoExists": {
+      "desc": "HTTP: checks whether a repo exists and can be rendered."
+    },
+    "fn:srp/RegisterWebhook": {
+      "desc": "HTTP: registers an outgoing webhook that the WebhookDispatcher calls for matching events."
+    },
+    "fn:srp/UnregisterWebhook": {
+      "desc": "HTTP: removes an outgoing webhook registration."
+    },
+    "fn:srp/RenderingTrigger": {
+      "desc": "The heart of the pipeline. For each push/fork/create on WACSEvent (RenderingWebhook subscription) it downloads the repo zip from WACS, detects the resource type, runs the matching renderer, uploads the output and build_log.json to $web/u/<owner>/<repo>/, and publishes RepoRendered with Success set."
+    },
+    "fn:srp/ProgressReporting": {
+      "desc": "Counts verses in pushed Bible repos (VerseCounting subscription) and publishes VerseCountingResult. Its consumer, VerseReportingProcessor, isn't run locally, so the results go nowhere here."
+    },
+    "fn:srp/RepoAnalysisTrigger": {
+      "desc": "Works out a repo's resource type and language for every WACSEvent and publishes RepoAnalysisResult."
+    },
+    "fn:srp/MergeTrigger": {
+      "desc": "Consumes MergeRequest, merges the USFM of several repos into one, and outputs MergedResult."
+    },
+    "fn:lapi/waLangApiRenderings": {
+      "desc": "The end of the main flow. For each RepoRendered message it upserts the git_repo, content and rendered_content rows (plus scriptural/non-scriptural metadata), reusing the handlers behind the /api/git, /api/content and /api/rendering routes. Two racing messages for a new repo can roll back one transaction; that's a known upstream race."
+    },
+    "fn:lapi/waLangApiGitTopics": {
+      "desc": "For every WACSEvent (languageapi subscription), syncs the repo's Gitea topics into git_topic / repo_topic."
+    },
+    "fn:lapi/waAudioRenderings": {
+      "desc": "Consumes audiobiel (session-enabled) to record audio renderings. Nothing publishes to it locally."
+    },
+    "fn:lapi/populateGlUsfmSources": {
+      "desc": "Timer (every 12h). Walks WACS repos via WACS_API_URL to record gateway-language USFM sources."
+    },
+    "fn:lapi/manageLocalizationTable": {
+      "desc": "Timer. Fills the localization table with book names and resource-type labels for each supported UI language."
+    },
+    "topic:wacsevent": {
+      "desc": "The fan-out point. One message per WACS webhook, copied to every subscription: render, verse count, analysis, webhook dispatch, languageapi topics, and deletes for the verse processor. Subscriptions filter on the eventType/Action application properties."
+    },
+    "topic:reporendered": {
+      "desc": "Published by RenderingTrigger after every render, successful or not. languageapi listens here to record what was rendered."
+    },
+    "topic:repoanalysisresult": {
+      "desc": "Resource type and language detected for a repo. Consumed by the WebhookDispatcher."
+    },
+    "topic:versecountingresult": {
+      "desc": "Verse counts per pushed Bible repo. Only successful counts reach InternalProcessor (VerseReportingProcessor, not run locally)."
+    },
+    "topic:mergerequest": {
+      "desc": "Merge jobs queued by POST /merge."
+    },
+    "topic:mergedresult": {
+      "desc": "Finished merges. Consumed by the NotificationHandler in VerseReportingProcessor (not run locally)."
+    },
+    "topic:audiobiel": {
+      "desc": "Audio renderings for BIEL. Declared so the controller's consumer can start; nothing publishes locally."
+    },
+    "blob:$web": {
+      "desc": "The rendered static site, the same container a production static website serves from. Each repo lands under u/<owner>/<repo>/ with chapter pages, index.json and build_log.json. It's publicly readable locally, so pages open in a browser.",
+      "links": [
+        {
+          "label": "Demo repo output",
+          "url": "http://localhost:10000/devstoreaccount1/$web/u/fielddata/en_ulb/JUD/1.html"
+        }
+      ]
+    },
+    "blob:template": {
+      "desc": "Holds print.html, the template SRP wraps around rendered output. The seed uploads a minimal stand-in from seed/templates/."
+    },
+    "blob:versecounts": {
+      "desc": "Created by the seed for the verse-counting path."
+    },
+    "table:content": {
+      "desc": "One row per content repo (e.g. fielddata/en_ulb): name, language, type and domain. Most other content tables hang off it."
+    },
+    "table:rendered_content": {
+      "desc": "One row per rendered file URL in $web, linked to content. The smoke test and `fdb status` query this through Hasura to prove the pipeline finished. (Drizzle export: `rendering`.)"
+    },
+    "table:git_repo": {
+      "desc": "Where a content row lives in WACS (repo URL and owner)."
+    },
+    "table:language": {
+      "desc": "Languages keyed by IETF code. The seed POSTs `en` via /api/language."
+    },
+    "file:config/servicebus/Config.json": {
+      "desc": "The whole Service Bus topology: topics, subscriptions and filter rules, translated from repos/srp/infra/main.bicep. Changing routing between systems means editing this file."
+    },
+    "file:repos/wacs/.env": {
+      "desc": "Upstream WACS environment (Gitea settings, DB credentials). Loaded first; config/wacs.env overrides it."
+    },
+    "file:docker/srp/functions.Dockerfile": {
+      "desc": "Umbrella-owned build for both SRP Functions apps (pick one with PROJECT=). It replaces the upstream Dockerfile, which builds a Functions Core Tools version that can't host net10."
+    },
+    "file:docker/languageapi/controller.Dockerfile": {
+      "desc": "Umbrella-owned build for the languageapi controller, with targets `migrate` and `runtime`. It replaces the upstream Dockerfile, which pins pnpm 8 while package.json needs pnpm 10."
+    },
+    "make:reset": {
+      "desc": "Fresh stack from scratch: nuke → up → seed → smoke. The first run builds images (~5–10 min). Run this when anything is weird.",
+      "tips": [
+        "Afterwards open the WACS demo repo and the rendered page."
+      ]
+    },
+    "make:up": {
+      "desc": "Build (if needed) and start everything, waiting until every healthcheck passes."
+    },
+    "make:seed": {
+      "desc": "Idempotent setup: WACS admin, token trigger, system webhook WACS → SRP, Azurite containers + print template, languageapi reference data, and the demo repo (whose first commit fires the pipeline)."
+    },
+    "make:smoke": {
+      "desc": "Health checks for every service, then the real end-to-end test: push a commit with a unique marker, wait for build_log.json to contain it, then wait for Hasura to show fresh rendered_content rows."
+    },
+    "script:scripts/lib.sh": {
+      "desc": "Shared helpers sourced by the seed, smoke and tool tests: ports/URLs, `compose`, `gitea_api`, and `push_fixture` (commits seed/fixtures through the Gitea contents API, which fires a push webhook)."
+    },
+    "make:prepare": {
+      "desc": "Internal step behind build/up: fails fast if the submodules aren't checked out, and stages the optional EXTRA_CA_FILE as .local/extra-ca.pem for image builds."
+    }
+  },
+  "edges": [
+    {
+      "from": "svc:wacs",
+      "to": "fn:srp/Webhook",
+      "kind": "calls",
+      "label": "system webhook (push, create, repository)",
+      "why": "seed/seed.sh registers a Gitea system hook to SRP_HOOK_URL=http://srp-webhook/webhook (scripts/lib.sh)"
+    },
+    {
+      "from": "fn:srp/RenderingTrigger",
+      "to": "svc:wacs",
+      "kind": "calls",
+      "label": "downloads repo zip",
+      "why": "Gitea__localhost__BaseUrl=http://wacs:3000 in compose/srp.yaml; credentials keyed by the html_url host"
+    },
+    {
+      "from": "fn:srp/RenderingTrigger",
+      "to": "blob:$web",
+      "kind": "calls",
+      "label": "writes HTML, index.json, build_log.json",
+      "why": "ScripturePipelineStorageOutputContainer=$web"
+    },
+    {
+      "from": "fn:srp/RenderingTrigger",
+      "to": "blob:template",
+      "kind": "calls",
+      "label": "reads print.html",
+      "why": "ScripturePipelineStorageTemplateContainer=template"
+    },
+    {
+      "from": "py:fdb.clients",
+      "to": "svc:wacs",
+      "kind": "calls",
+      "label": "Gitea REST + git push",
+      "why": "tools/fdb/clients.py: Gitea and git(); pushes are refused unless the host is local (config.assert_local_wacs)"
+    },
+    {
+      "from": "py:fdb.clients",
+      "to": "blob:$web",
+      "kind": "calls",
+      "label": "reads build_log.json",
+      "why": "tools/fdb/clients.py: Blob.get_json, used by core._status_once for the render stage"
+    },
+    {
+      "from": "py:fdb.clients",
+      "to": "svc:lapi-hasura",
+      "kind": "calls",
+      "label": "GraphQL rendered_content",
+      "why": "tools/fdb/clients.py: Hasura.query, used by core._status_once for the languageapi stage"
+    },
+    {
+      "from": "svc:lapi-migrate",
+      "to": "table:content",
+      "kind": "calls",
+      "label": "applies drizzle/*.sql",
+      "why": "docker/languageapi/controller.Dockerfile target migrate; every table is created this way"
+    }
+  ],
+  "tours": [
+    {
+      "id": "commit",
+      "title": "A commit's journey",
+      "intro": "What happens between `git push` and the change showing up in the public API. This is the flow the whole repo exists to reproduce, and what `make smoke` and `fdb status` check.",
+      "steps": [
+        {
+          "title": "A translator pushes to WACS.",
+          "text": "WACS is Gitea. Locally the push comes from you, `make smoke`, or `fdb put`, which all commit through the Gitea API. That counts as a push like any other.",
+          "nodes": [
+            "svc:wacs",
+            "script:scripts/smoke.sh",
+            "py:fdb.core"
+          ]
+        },
+        {
+          "title": "Gitea calls SRP's webhook.",
+          "text": "`make seed` registers a system webhook, so every repo's push, create and repository events go to http://srp-webhook/webhook. The webhook function checks the repo's host and builds a WACSMessage. A brand-new repo fires both `create` and `push`, so it renders twice.",
+          "nodes": [
+            "svc:wacs",
+            "fn:srp/Webhook",
+            "svc:srp-webhook"
+          ],
+          "focus": "fn:srp/Webhook"
+        },
+        {
+          "title": "One message, many subscribers.",
+          "text": "The message goes to the WACSEvent topic. Service Bus copies it to every subscription whose filter matches: rendering and verse counting only take push/fork/create, while analysis, the webhook dispatcher and languageapi take everything. The routing is all in config/servicebus/Config.json.",
+          "nodes": [
+            "fn:srp/Webhook",
+            "topic:wacsevent",
+            "sub:wacsevent/RenderingWebhook",
+            "sub:wacsevent/VerseCounting",
+            "sub:wacsevent/RepoAnalysis",
+            "sub:wacsevent/WebhookDispatcher",
+            "sub:wacsevent/languageapi",
+            "sub:wacsevent/InternalProcessor",
+            "fn:srp/RenderingTrigger",
+            "fn:srp/ProgressReporting",
+            "fn:srp/RepoAnalysisTrigger",
+            "fn:srp/WebhookDispatcherWACSMessageTrigger",
+            "fn:lapi/waLangApiGitTopics",
+            "svc:VerseReportingProcessor"
+          ],
+          "focus": "topic:wacsevent"
+        },
+        {
+          "title": "The worker renders.",
+          "text": "RenderingTrigger downloads the repo zip from WACS, picks a renderer from the manifest's resource type (Bible, notes, words, questions...), and writes the pages, index.json and build_log.json to $web/u/<owner>/<repo>/.",
+          "nodes": [
+            "sub:wacsevent/RenderingWebhook",
+            "fn:srp/RenderingTrigger",
+            "svc:wacs",
+            "renderer:BibleRenderer",
+            "blob:$web",
+            "blob:template"
+          ],
+          "focus": "fn:srp/RenderingTrigger"
+        },
+        {
+          "title": "SRP announces RepoRendered.",
+          "text": "Win or lose, the worker publishes a RenderingResultMessage with a Success property. Anyone can subscribe; locally the only subscriber is languageapi.",
+          "nodes": [
+            "fn:srp/RenderingTrigger",
+            "topic:reporendered",
+            "sub:reporendered/reporendered-languageapi"
+          ],
+          "focus": "topic:reporendered"
+        },
+        {
+          "title": "languageapi records it.",
+          "text": "The controller's waLangApiRenderings function upserts git_repo, content and one rendered_content row per file, reusing the same handlers as the REST routes. Meanwhile waLangApiGitTopics has synced the repo's topics from its own WACSEvent subscription.",
+          "nodes": [
+            "fn:lapi/waLangApiRenderings",
+            "route:lapi/rendering",
+            "route:lapi/content",
+            "route:lapi/git",
+            "table:rendered_content",
+            "table:content",
+            "table:git_repo",
+            "fn:lapi/waLangApiGitTopics"
+          ]
+        },
+        {
+          "title": "Hasura serves it.",
+          "text": "Hasura exposes the tables read-only over GraphQL. The smoke test and `fdb status` both query rendered_content here to prove the change made it all the way through.",
+          "nodes": [
+            "svc:lapi-hasura",
+            "table:rendered_content",
+            "py:fdb.clients",
+            "script:scripts/smoke.sh"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "startup",
+      "title": "Bringing the stack up",
+      "intro": "What `make reset` actually does, and why services start in the order they do.",
+      "steps": [
+        {
+          "title": "make reset = nuke, up, seed, smoke.",
+          "text": "Each step is its own target, so you can rerun any of them alone. `make nuke` drops every named volume; `make down` keeps them.",
+          "nodes": [
+            "make:reset",
+            "make:nuke",
+            "make:up",
+            "make:seed",
+            "make:smoke"
+          ]
+        },
+        {
+          "title": "Infrastructure first.",
+          "text": "Azurite and the Service Bus emulator (on SQL Server) start first. The emulator image has no shell, so sb-health probes it and the Functions apps wait on sb-health.",
+          "nodes": [
+            "svc:azurite",
+            "svc:sb-sql",
+            "svc:servicebus",
+            "svc:sb-health",
+            "file:config/servicebus/Config.json"
+          ]
+        },
+        {
+          "title": "Databases and migrations.",
+          "text": "MariaDB and Valkey come up for WACS. Postgres for languageapi gets the Drizzle migrations from the one-shot lapi-migrate job, and Hasura and the controller only start once it has completed successfully.",
+          "nodes": [
+            "svc:wacs-db",
+            "svc:wacs-redis",
+            "svc:lapi-postgres",
+            "svc:lapi-migrate",
+            "svc:lapi-hasura",
+            "svc:lapi-controller"
+          ]
+        },
+        {
+          "title": "Apps built from the submodules.",
+          "text": "WACS, both SRP apps and the languageapi controller are built from the pinned code in repos/. Where an upstream Dockerfile doesn't work, the umbrella's own Dockerfile in docker/ replaces it. Nothing in the submodules is modified.",
+          "nodes": [
+            "svc:wacs",
+            "svc:srp-webhook",
+            "svc:srp-worker",
+            "file:docker/srp/functions.Dockerfile",
+            "file:docker/languageapi/controller.Dockerfile",
+            "file:repos/wacs/wacs-gitea/Dockerfile"
+          ]
+        },
+        {
+          "title": "Seed wires the systems together.",
+          "text": "The seed creates the admin user, installs the token trigger, registers the WACS → SRP webhook, creates the blob containers, posts reference data to languageapi, and creates the demo repo. That repo's first commit is the first trip through the pipeline.",
+          "nodes": [
+            "script:seed/seed.sh",
+            "svc:wacs",
+            "svc:wacs-db",
+            "svc:tools",
+            "blob:$web",
+            "blob:template",
+            "svc:lapi-controller",
+            "file:seed/fixtures"
+          ]
+        },
+        {
+          "title": "Smoke proves it.",
+          "text": "Health checks for every service, then a real commit followed until it appears in Hasura. If this passes, the stack works.",
+          "nodes": [
+            "script:scripts/smoke.sh",
+            "script:scripts/lib.sh",
+            "svc:lapi-hasura",
+            "blob:$web"
+          ]
+        }
+      ],
+      "edge_kinds": [
+        "depends_on",
+        "runs",
+        "calls",
+        "uses",
+        "built_by",
+        "mounts"
+      ]
+    },
+    {
+      "id": "fdb",
+      "title": "Testing with real repos (fdb)",
+      "intro": "How the fdb CLI and HTTP API import, edit and follow a repo, and which systems they touch.",
+      "steps": [
+        {
+          "title": "Two front ends, one core.",
+          "text": "`tools/cli/fdb` runs on your machine; fdb-api runs the same package in a container on :7080. Both call fdb.core, so every operation returns the same dict.",
+          "nodes": [
+            "script:tools/cli/fdb",
+            "py:fdb.cli",
+            "svc:fdb-api",
+            "py:fdb.server",
+            "py:fdb.core"
+          ]
+        },
+        {
+          "title": "Import.",
+          "text": "Clones the source repo, creates it in the local WACS and pushes. The push fires the webhook, so the import renders like any other push. Pushing anywhere other than the local WACS is refused.",
+          "nodes": [
+            "ep:fdb/POST /import",
+            "py:fdb.core",
+            "py:fdb.config",
+            "py:fdb.clients",
+            "svc:wacs"
+          ],
+          "focus": "ep:fdb/POST /import"
+        },
+        {
+          "title": "Put.",
+          "text": "Replaces one file in one commit through the Gitea contents API, just like a real push.",
+          "nodes": [
+            "ep:fdb/PUT /repos/{owner}/{repo}/contents/{path}",
+            "py:fdb.core",
+            "svc:wacs"
+          ]
+        },
+        {
+          "title": "Status.",
+          "text": "Checks three stages for a commit: it's in WACS, $web's build_log.json names it (render), and Hasura's rendered_content was updated after that render ended (languageapi).",
+          "nodes": [
+            "ep:fdb/GET /repos/{owner}/{repo}/pipeline",
+            "py:fdb.clients",
+            "svc:wacs",
+            "blob:$web",
+            "svc:lapi-hasura",
+            "table:rendered_content"
+          ]
+        }
+      ]
+    }
+  ],
+  "diagram": {
+    "direction": "TD",
+    "system_order": [
+      "umbrella",
+      "fdb",
+      "wacs",
+      "srp",
+      "infra",
+      "languageapi"
+    ],
+    "groups": {
+      "dev_reset": {
+        "label": "make reset",
+        "sub": "nuke → up → seed → smoke",
+        "parent": "sys:umbrella",
+        "match": "^make:(reset|nuke|up|seed|smoke)$",
+        "desc": "One command for a fresh stack: nuke, up, seed, then smoke (health checks plus a real commit followed all the way to Hasura). Each step is also its own make target.",
+        "kind": "make"
+      },
+      "fdb_cli": {
+        "label": "fdb CLI",
+        "sub": "tools/cli/fdb",
+        "parent": "sys:fdb",
+        "match": "^(script:tools/cli/fdb|py:fdb\\.cli)$",
+        "kind": "script"
+      },
+      "fdb_core": {
+        "label": "fdb core",
+        "sub": "import · put · status",
+        "parent": "sys:fdb",
+        "match": "^py:fdb\\.(core|clients|config)$",
+        "kind": "module"
+      },
+      "fdb_http": {
+        "label": "HTTP API",
+        "sub": "/import · /repos/…/contents · /pipeline",
+        "parent": "svc:fdb-api",
+        "match": "^(ep:fdb/|py:fdb\\.server$)"
+      },
+      "srp_http": {
+        "label": "On-demand HTTP",
+        "sub": "RenderDoc · CheckRepoExists · (Un)RegisterWebhook",
+        "parent": "svc:srp-webhook",
+        "match": "^fn:srp/(RenderDoc|CheckRepoExists|RegisterWebhook|UnregisterWebhook)$"
+      },
+      "srp_dispatch": {
+        "label": "WebhookDispatcher",
+        "sub": "Service Bus trigger ×2",
+        "parent": "svc:srp-worker",
+        "match": "^fn:srp/WebhookDispatcher"
+      },
+      "srp_renderers": {
+        "label": "Renderers",
+        "sub": "Bible · tN · tQ · tW · tA · commentary",
+        "parent": "svc:srp-worker",
+        "match": "^renderer:(?!USFM)"
+      },
+      "lapi_routes": {
+        "label": "REST routes",
+        "sub": "/api/language · content · git · rendering …",
+        "parent": "svc:lapi-controller",
+        "match": "^route:lapi/"
+      },
+      "lapi_timers": {
+        "label": "Timers",
+        "sub": "localizations · GL USFM sources",
+        "parent": "svc:lapi-controller",
+        "match": "^fn:lapi/(manageLocalizationTable|populateGlUsfmSources)$"
+      }
+    },
+    "include": [
+      "script:seed/seed.sh"
+    ],
+    "exclude": [
+      "svc:sb-health",
+      "svc:tools",
+      "svc:sb-sql",
+      "renderer:USFMRenderer",
+      "blob:versecounts",
+      "rest:hasura/consolidated-repos",
+      "rest:hasura/langnames"
+    ],
+    "hide_edges_from": [
+      "svc:fdb-api"
+    ],
+    "edge_labels": {
+      "svc_wacs->blob__web": "links to rendered pages",
+      "script_seed_seed_sh->svc_wacs": "admin user, webhook, demo repo",
+      "script_seed_seed_sh->svc_wacs_db": "token trigger SQL",
+      "script_seed_seed_sh->svc_lapi_controller": "reference data",
+      "script_seed_seed_sh->blob__web": "creates containers",
+      "grp_fdb_http->grp_fdb_core": "same operations"
+    },
+    "aliases": {
+      "script:scripts/smoke.sh": "make:reset",
+      "script:scripts/lib.sh": "script:seed/seed.sh"
+    },
+    "flip": {
+      "fn_srp_RenderingTrigger->svc_wacs": "repo zip",
+      "grp_lapi_timers->svc_wacs": "repo listings (API)",
+      "fn_srp_RenderingTrigger->blob_template": "print.html"
+    }
+  }
+}

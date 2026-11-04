@@ -16,7 +16,7 @@ COMPOSE := docker compose $(COMPOSE_FILE_ARGS)
 
 .PHONY: help
 help: ## Show this help
-	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
+	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
 
 .PHONY: init
 init: ## Check out the pinned submodule commits
@@ -83,6 +83,14 @@ repos: ## List local WACS repos and their pipeline state
 .PHONY: test-tools
 test-tools: ## Offline end-to-end test of the fdb CLI and HTTP API
 	./tools/test.sh
+
+.PHONY: graph
+graph: ## Regenerate the system design diagram (docs/architecture/)
+	python3 tools/graph/build.py
+
+.PHONY: graph-check
+graph-check: ## Fail if docs/architecture/ is out of date with the code
+	python3 tools/graph/build.py --check
 
 .PHONY: reset
 reset: nuke up seed smoke ## Fresh stack from scratch: nuke, up, seed, smoke
