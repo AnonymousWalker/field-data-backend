@@ -1,0 +1,5803 @@
+{
+ "meta": {
+  "title": "field-data-backend architecture",
+  "repo_url": "https://github.com/AnonymousWalker/field-data-backend",
+  "generator": "tools/graph/build.py",
+  "submodules": [
+   {
+    "path": "repos/wacs",
+    "url": "https://github.com/WycliffeAssociates/WACS",
+    "sha": "00b31b5376408f054396b7251b03a1b64574fb00",
+    "branch": "prod"
+   },
+   {
+    "path": "repos/srp",
+    "url": "https://github.com/WycliffeAssociates/ScriptureRenderingPipeline",
+    "sha": "d5255debf3bfade4ce1be9d4df37f77a18407f0f",
+    "branch": "master"
+   },
+   {
+    "path": "repos/languageapi",
+    "url": "https://github.com/WycliffeAssociates/languageapi",
+    "sha": "0cae62328df6abb9541ee49d308c84e132bfe6bb",
+    "branch": "prod"
+   }
+  ],
+  "counts": {
+   "nodes": 154,
+   "edges": 237,
+   "blob": 3,
+   "endpoint": 7,
+   "file": 16,
+   "function": 24,
+   "make": 20,
+   "module": 12,
+   "script": 5,
+   "service": 17,
+   "subscription": 12,
+   "system": 6,
+   "table": 19,
+   "topic": 7,
+   "volume": 6
+  }
+ },
+ "edge_kinds": {
+  "publishes": {
+   "label": "publishes to",
+   "flow": true,
+   "desc": "Sends messages to a Service Bus topic."
+  },
+  "delivers": {
+   "label": "delivers to",
+   "flow": true,
+   "desc": "A topic copies each message to a subscription (label = filter)."
+  },
+  "triggers": {
+   "label": "triggers",
+   "flow": true,
+   "desc": "A subscription invokes this consumer for each message."
+  },
+  "calls": {
+   "label": "calls",
+   "flow": true,
+   "desc": "Direct call: HTTP, a function call, or a script running a command."
+  },
+  "uses": {
+   "label": "connects to",
+   "flow": false,
+   "desc": "Runtime connection, from the service's environment (URLs, connection strings)."
+  },
+  "reads_writes": {
+   "label": "reads/writes",
+   "flow": false,
+   "desc": "Touches this table (from code references)."
+  },
+  "exposes": {
+   "label": "exposes",
+   "flow": false,
+   "desc": "Serves this table or endpoint."
+  },
+  "fk": {
+   "label": "foreign key",
+   "flow": false,
+   "desc": "Table references another table."
+  },
+  "depends_on": {
+   "label": "starts after",
+   "flow": false,
+   "desc": "Compose startup order (depends_on + condition)."
+  },
+  "stores": {
+   "label": "stores data in",
+   "flow": false,
+   "desc": "Mounts a named volume."
+  },
+  "mounts": {
+   "label": "mounts",
+   "flow": false,
+   "desc": "Bind-mounts a file/dir from this repo, or reads it as env_file."
+  },
+  "built_by": {
+   "label": "built by",
+   "flow": false,
+   "desc": "The Dockerfile that builds this service's image."
+  },
+  "imports": {
+   "label": "imports",
+   "flow": false,
+   "desc": "Python import."
+  },
+  "runs": {
+   "label": "runs",
+   "flow": true,
+   "desc": "A make target runs a script, compose, or another target."
+  }
+ },
+ "node_kinds": {
+  "system": {
+   "label": "System",
+   "desc": "A whole project (or this repo's own tooling). Boxes group everything inside."
+  },
+  "service": {
+   "label": "Container",
+   "desc": "A docker compose service. Dashed outline: deployed in production, not run locally."
+  },
+  "function": {
+   "label": "Function / route",
+   "desc": "An Azure Function (HTTP, Service Bus or timer trigger) or an HTTP route."
+  },
+  "endpoint": {
+   "label": "Endpoint",
+   "desc": "An HTTP endpoint exposed by a service."
+  },
+  "topic": {
+   "label": "Topic",
+   "desc": "A Service Bus topic. Publishers send here; every subscription gets a copy."
+  },
+  "subscription": {
+   "label": "Subscription",
+   "desc": "A Service Bus subscription: a filtered copy of a topic that one consumer reads."
+  },
+  "table": {
+   "label": "Table / view",
+   "desc": "A Postgres table or view in the languageapi database."
+  },
+  "blob": {
+   "label": "Blob container",
+   "desc": "An Azurite blob container."
+  },
+  "volume": {
+   "label": "Volume",
+   "desc": "A named docker volume. `make nuke` deletes these."
+  },
+  "module": {
+   "label": "Code module",
+   "desc": "A source module or class worth knowing about."
+  },
+  "file": {
+   "label": "Config / file",
+   "desc": "A config file, Dockerfile or directory that shapes the stack."
+  },
+  "script": {
+   "label": "Script",
+   "desc": "A shell or Python entry point you run."
+  },
+  "make": {
+   "label": "make target",
+   "desc": "A Makefile target. Start here."
+  }
+ },
+ "nodes": [
+  {
+   "id": "blob:$web",
+   "label": "$web",
+   "kind": "blob",
+   "sources": [],
+   "attrs": {},
+   "system": "infra",
+   "parent": "svc:azurite",
+   "desc": "The rendered static site, the same container a production static website serves from. Each repo lands under u/<owner>/<repo>/ with chapter pages, index.json and build_log.json. It's publicly readable locally, so pages open in a browser.",
+   "links": [
+    {
+     "label": "Demo repo output",
+     "url": "http://localhost:10000/devstoreaccount1/$web/u/fielddata/en_ulb/JUD/1.html"
+    }
+   ]
+  },
+  {
+   "id": "blob:template",
+   "label": "template",
+   "kind": "blob",
+   "sources": [],
+   "attrs": {},
+   "system": "infra",
+   "parent": "svc:azurite",
+   "desc": "Holds print.html, the template SRP wraps around rendered output. The seed uploads a minimal stand-in from seed/templates/."
+  },
+  {
+   "id": "blob:versecounts",
+   "label": "versecounts",
+   "kind": "blob",
+   "sources": [],
+   "attrs": {},
+   "system": "infra",
+   "parent": "svc:azurite",
+   "desc": "Created by the seed for the verse-counting path."
+  },
+  {
+   "id": "ep:fdb/GET /healthz",
+   "label": "GET /healthz",
+   "kind": "endpoint",
+   "sources": [
+    {
+     "path": "tools/fdb/server.py",
+     "line": 27,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/tools/fdb/server.py#L27"
+    }
+   ],
+   "attrs": {},
+   "system": "fdb",
+   "parent": "svc:fdb-api",
+   "desc": "`GET /healthz` served by `fdb-api`.",
+   "desc_auto": true
+  },
+  {
+   "id": "ep:fdb/GET /repos",
+   "label": "GET /repos",
+   "kind": "endpoint",
+   "sources": [
+    {
+     "path": "tools/fdb/server.py",
+     "line": 28,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/tools/fdb/server.py#L28"
+    }
+   ],
+   "attrs": {},
+   "system": "fdb",
+   "parent": "svc:fdb-api",
+   "desc": "`GET /repos` served by `fdb-api`. Calls fdb.core.",
+   "desc_auto": true
+  },
+  {
+   "id": "ep:fdb/GET /repos/{owner}/{repo}/pipeline",
+   "label": "GET /repos/{owner}/{repo}/pipeline",
+   "kind": "endpoint",
+   "sources": [
+    {
+     "path": "tools/fdb/server.py",
+     "line": 31,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/tools/fdb/server.py#L31"
+    }
+   ],
+   "attrs": {},
+   "system": "fdb",
+   "parent": "svc:fdb-api",
+   "desc": "`GET /repos/{owner}/{repo}/pipeline` served by `fdb-api`. Calls fdb.core.",
+   "desc_auto": true
+  },
+  {
+   "id": "ep:fdb/POST /import",
+   "label": "POST /import",
+   "kind": "endpoint",
+   "sources": [
+    {
+     "path": "tools/fdb/server.py",
+     "line": 29,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/tools/fdb/server.py#L29"
+    }
+   ],
+   "attrs": {},
+   "system": "fdb",
+   "parent": "svc:fdb-api",
+   "desc": "`POST /import` served by `fdb-api`. Calls fdb.core.",
+   "desc_auto": true
+  },
+  {
+   "id": "ep:fdb/PUT /repos/{owner}/{repo}/contents/{path}",
+   "label": "PUT /repos/{owner}/{repo}/contents/{path}",
+   "kind": "endpoint",
+   "sources": [
+    {
+     "path": "tools/fdb/server.py",
+     "line": 30,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/tools/fdb/server.py#L30"
+    }
+   ],
+   "attrs": {},
+   "system": "fdb",
+   "parent": "svc:fdb-api",
+   "desc": "`PUT /repos/{owner}/{repo}/contents/{path}` served by `fdb-api`. Calls fdb.core.",
+   "desc_auto": true
+  },
+  {
+   "id": "file:.gitmodules",
+   "label": ".gitmodules",
+   "kind": "file",
+   "sources": [
+    {
+     "path": ".gitmodules",
+     "line": 1,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/.gitmodules"
+    }
+   ],
+   "attrs": {},
+   "system": "umbrella",
+   "parent": "sys:umbrella"
+  },
+  {
+   "id": "file:compose.yaml",
+   "label": "compose.yaml",
+   "kind": "file",
+   "sources": [
+    {
+     "path": "compose.yaml",
+     "line": 1,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/compose.yaml"
+    }
+   ],
+   "attrs": {},
+   "system": "umbrella",
+   "parent": "sys:umbrella",
+   "desc": "Root compose file. It `include:`s compose/{infra,wacs,languageapi,srp,tools}.yaml, so every service in the graph comes from here."
+  },
+  {
+   "id": "file:config/servicebus/Config.json",
+   "label": "Config.json",
+   "kind": "file",
+   "sources": [
+    {
+     "path": "config/servicebus/Config.json",
+     "line": 1,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/config/servicebus/Config.json"
+    }
+   ],
+   "attrs": {},
+   "system": "infra",
+   "parent": "sys:infra",
+   "desc": "The whole Service Bus topology: topics, subscriptions and filter rules, translated from repos/srp/infra/main.bicep. Changing routing between systems means editing this file."
+  },
+  {
+   "id": "file:config/wacs.env",
+   "label": "wacs.env",
+   "kind": "file",
+   "sources": [
+    {
+     "path": "config/wacs.env",
+     "line": 1,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/config/wacs.env"
+    }
+   ],
+   "attrs": {},
+   "system": "wacs",
+   "parent": "sys:wacs",
+   "desc": "Local overrides layered on top of repos/wacs/.env (later env_file entries win). Only values that must differ for the umbrella stack belong here. Service names are prefixed in the umbrella stack. Allow Gitea to deliver webhooks to other containers on the compose network (default \"external\" blocks them)."
+  },
+  {
+   "id": "file:docker/languageapi/controller.Dockerfile",
+   "label": "controller.Dockerfile",
+   "kind": "file",
+   "sources": [
+    {
+     "path": "docker/languageapi/controller.Dockerfile",
+     "line": 1,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/docker/languageapi/controller.Dockerfile"
+    }
+   ],
+   "attrs": {},
+   "system": "languageapi",
+   "parent": "sys:languageapi",
+   "desc": "Umbrella-owned build for the languageapi controller, with targets `migrate` and `runtime`. It replaces the upstream Dockerfile, which pins pnpm 8 while package.json needs pnpm 10."
+  },
+  {
+   "id": "file:docker/srp/functions.Dockerfile",
+   "label": "functions.Dockerfile",
+   "kind": "file",
+   "sources": [
+    {
+     "path": "docker/srp/functions.Dockerfile",
+     "line": 1,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/docker/srp/functions.Dockerfile"
+    }
+   ],
+   "attrs": {},
+   "system": "srp",
+   "parent": "sys:srp",
+   "desc": "Umbrella-owned build for both SRP Functions apps (pick one with PROJECT=). It replaces the upstream Dockerfile, which builds a Functions Core Tools version that can't host net10."
+  },
+  {
+   "id": "file:repos/languageapi/hasura/metadata",
+   "label": "repos/languageapi/hasura/metadata",
+   "kind": "file",
+   "sources": [
+    {
+     "path": "repos/languageapi/hasura/metadata",
+     "line": 1,
+     "url": "https://github.com/WycliffeAssociates/languageapi/tree/0cae62328df6abb9541ee49d308c84e132bfe6bb/hasura/metadata"
+    }
+   ],
+   "attrs": {
+    "is_dir": true
+   },
+   "system": "languageapi",
+   "parent": "sys:languageapi",
+   "desc": "Directory `repos/languageapi/hasura/metadata`, used by `lapi-hasura`.",
+   "desc_auto": true
+  },
+  {
+   "id": "file:repos/wacs/.env",
+   "label": "repos/wacs/.env",
+   "kind": "file",
+   "sources": [
+    {
+     "path": "repos/wacs/.env",
+     "line": 1,
+     "url": "https://github.com/WycliffeAssociates/WACS/blob/00b31b5376408f054396b7251b03a1b64574fb00/.env"
+    }
+   ],
+   "attrs": {},
+   "system": "wacs",
+   "parent": "sys:wacs",
+   "desc": "Upstream WACS environment (Gitea settings, DB credentials). Loaded first; config/wacs.env overrides it."
+  },
+  {
+   "id": "file:repos/wacs/wacs-gitea/Dockerfile",
+   "label": "repos/wacs/wacs-gitea/Dockerfile",
+   "kind": "file",
+   "sources": [
+    {
+     "path": "repos/wacs/wacs-gitea/Dockerfile",
+     "line": 1,
+     "url": "https://github.com/WycliffeAssociates/WACS/blob/00b31b5376408f054396b7251b03a1b64574fb00/wacs-gitea/Dockerfile"
+    }
+   ],
+   "attrs": {},
+   "system": "wacs",
+   "parent": "sys:wacs",
+   "desc": "Grab the locale files from the gitea binary in the image Build locale files from gitea, with WA's overrides and new keys"
+  },
+  {
+   "id": "file:seed",
+   "label": "seed",
+   "kind": "file",
+   "sources": [
+    {
+     "path": "seed",
+     "line": 1,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/tree/main/seed"
+    }
+   ],
+   "attrs": {
+    "is_dir": true
+   },
+   "system": "umbrella",
+   "parent": "sys:umbrella",
+   "desc": "Directory `seed`, used by `tools`.",
+   "desc_auto": true
+  },
+  {
+   "id": "file:seed/fixtures",
+   "label": "seed/fixtures",
+   "kind": "file",
+   "sources": [
+    {
+     "path": "seed/fixtures",
+     "line": 1,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/tree/main/seed/fixtures"
+    }
+   ],
+   "attrs": {
+    "is_dir": true
+   },
+   "system": "umbrella",
+   "parent": "sys:umbrella",
+   "desc": "Directory `seed/fixtures`, used by `seed/seed.sh`.",
+   "desc_auto": true
+  },
+  {
+   "id": "file:seed/languageapi",
+   "label": "seed/languageapi",
+   "kind": "file",
+   "sources": [
+    {
+     "path": "seed/languageapi",
+     "line": 1,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/tree/main/seed/languageapi"
+    }
+   ],
+   "attrs": {
+    "is_dir": true
+   },
+   "system": "umbrella",
+   "parent": "sys:umbrella",
+   "desc": "Directory `seed/languageapi`, used by `seed/seed.sh`.",
+   "desc_auto": true
+  },
+  {
+   "id": "file:seed/sql/wacs-token-trigger.sql",
+   "label": "wacs-token-trigger.sql",
+   "kind": "file",
+   "sources": [
+    {
+     "path": "seed/sql/wacs-token-trigger.sql",
+     "line": 1,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/seed/sql/wacs-token-trigger.sql"
+    }
+   ],
+   "attrs": {},
+   "system": "umbrella",
+   "parent": "sys:umbrella"
+  },
+  {
+   "id": "file:seed/templates",
+   "label": "seed/templates",
+   "kind": "file",
+   "sources": [
+    {
+     "path": "seed/templates",
+     "line": 1,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/tree/main/seed/templates"
+    }
+   ],
+   "attrs": {
+    "is_dir": true
+   },
+   "system": "umbrella",
+   "parent": "sys:umbrella",
+   "desc": "Directory `seed/templates`, used by `seed/seed.sh`.",
+   "desc_auto": true
+  },
+  {
+   "id": "file:tools",
+   "label": "tools",
+   "kind": "file",
+   "sources": [
+    {
+     "path": "tools",
+     "line": 1,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/tree/main/tools"
+    }
+   ],
+   "attrs": {
+    "is_dir": true
+   },
+   "system": "fdb",
+   "parent": "sys:fdb",
+   "desc": "Directory `tools`, used by `fdb-api`.",
+   "desc_auto": true
+  },
+  {
+   "id": "file:tools/http/Dockerfile",
+   "label": "tools/http/Dockerfile",
+   "kind": "file",
+   "sources": [
+    {
+     "path": "tools/http/Dockerfile",
+     "line": 1,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/tools/http/Dockerfile"
+    }
+   ],
+   "attrs": {},
+   "system": "fdb",
+   "parent": "sys:fdb",
+   "desc": "fdb-api: the fdb HTTP helper. The code itself (tools/fdb) is bind-mounted, so edits apply on restart. Optional build secret `extra_ca` is trusted while installing packages (TLS-intercepting proxies); it is removed again before the layer is committed."
+  },
+  {
+   "id": "fn:lapi/manageLocalizationTable",
+   "label": "manageLocalizationTable",
+   "kind": "function",
+   "sources": [
+    {
+     "path": "repos/languageapi/controller/src/functions/localization.ts",
+     "line": 169,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/functions/localization.ts#L169"
+    }
+   ],
+   "attrs": {
+    "trigger": "timer",
+    "schedule": "1 1 */4 * * *"
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-controller",
+   "desc": "Timer. Fills the localization table with book names and resource-type labels for each supported UI language."
+  },
+  {
+   "id": "fn:lapi/populateGlUsfmSources",
+   "label": "populateGlUsfmSources",
+   "kind": "function",
+   "sources": [
+    {
+     "path": "repos/languageapi/controller/src/functions/glUsfmSources.ts",
+     "line": 249,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/functions/glUsfmSources.ts#L249"
+    }
+   ],
+   "attrs": {
+    "trigger": "timer",
+    "schedule": "0 3 */12 * * *"
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-controller",
+   "desc": "Timer (every 12h). Walks WACS repos via WACS_API_URL to record gateway-language USFM sources."
+  },
+  {
+   "id": "fn:lapi/waAudioRenderings",
+   "label": "waAudioRenderings",
+   "kind": "function",
+   "sources": [
+    {
+     "path": "repos/languageapi/controller/src/functions/audio-renderings-bus.ts",
+     "line": 240,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/functions/audio-renderings-bus.ts#L240"
+    }
+   ],
+   "attrs": {
+    "trigger": "servicebus",
+    "topic": "audiobiel",
+    "subscription": "languageapi"
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-controller",
+   "desc": "Consumes audiobiel (session-enabled) to record audio renderings. Nothing publishes to it locally."
+  },
+  {
+   "id": "fn:lapi/waLangApiGitTopics",
+   "label": "waLangApiGitTopics",
+   "kind": "function",
+   "sources": [
+    {
+     "path": "repos/languageapi/controller/src/functions/bus-wacsevent-gitTopics.ts",
+     "line": 128,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/functions/bus-wacsevent-gitTopics.ts#L128"
+    }
+   ],
+   "attrs": {
+    "trigger": "servicebus",
+    "topic": "wacsevent",
+    "subscription": "languageapi"
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-controller",
+   "desc": "For every WACSEvent (languageapi subscription), syncs the repo's Gitea topics into git_topic / repo_topic."
+  },
+  {
+   "id": "fn:lapi/waLangApiRenderings",
+   "label": "waLangApiRenderings",
+   "kind": "function",
+   "sources": [
+    {
+     "path": "repos/languageapi/controller/src/functions/renderings-bus.ts",
+     "line": 266,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/functions/renderings-bus.ts#L266"
+    }
+   ],
+   "attrs": {
+    "trigger": "servicebus",
+    "topic": "reporendered",
+    "subscription": "reporendered-languageapi"
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-controller",
+   "desc": "The end of the main flow. For each RepoRendered message it upserts the git_repo, content and rendered_content rows (plus scriptural/non-scriptural metadata), reusing the handlers behind the /api/git, /api/content and /api/rendering routes. Two racing messages for a new repo can roll back one transaction; that's a known upstream race."
+  },
+  {
+   "id": "fn:srp/CheckRepoExists",
+   "label": "CheckRepoExists",
+   "kind": "function",
+   "sources": [
+    {
+     "path": "repos/srp/ScriptureRenderingPipeline/Rendering.cs",
+     "line": 255,
+     "url": "https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipeline/Rendering.cs#L255"
+    }
+   ],
+   "attrs": {
+    "trigger": "http",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "route": "/api/CheckRepoExists"
+   },
+   "system": "srp",
+   "parent": "svc:srp-webhook",
+   "desc": "HTTP: checks whether a repo exists and can be rendered."
+  },
+  {
+   "id": "fn:srp/MergeTrigger",
+   "label": "MergeTrigger",
+   "kind": "function",
+   "sources": [
+    {
+     "path": "repos/srp/ScriptureRenderingPipelineWorker/MergeHandler.cs",
+     "line": 46,
+     "url": "https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/MergeHandler.cs#L46"
+    }
+   ],
+   "attrs": {
+    "trigger": "servicebus",
+    "topic": "MergeRequest",
+    "subscription": "MergeRequest"
+   },
+   "system": "srp",
+   "parent": "svc:srp-worker",
+   "desc": "Consumes MergeRequest, merges the USFM of several repos into one, and outputs MergedResult."
+  },
+  {
+   "id": "fn:srp/MergeWebhook",
+   "label": "MergeWebhook",
+   "kind": "function",
+   "sources": [
+    {
+     "path": "repos/srp/ScriptureRenderingPipeline/Webhook.cs",
+     "line": 125,
+     "url": "https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipeline/Webhook.cs#L125"
+    }
+   ],
+   "attrs": {
+    "trigger": "http",
+    "methods": [
+     "POST"
+    ],
+    "route": "/merge"
+   },
+   "system": "srp",
+   "parent": "svc:srp-webhook",
+   "desc": "POST /merge. Queues a merge of several repos by publishing to MergeRequest."
+  },
+  {
+   "id": "fn:srp/ProgressReporting",
+   "label": "ProgressReporting",
+   "kind": "function",
+   "sources": [
+    {
+     "path": "repos/srp/ScriptureRenderingPipelineWorker/ProgressReporting.cs",
+     "line": 29,
+     "url": "https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/ProgressReporting.cs#L29"
+    }
+   ],
+   "attrs": {
+    "trigger": "servicebus",
+    "topic": "WACSEvent",
+    "subscription": "VerseCounting"
+   },
+   "system": "srp",
+   "parent": "svc:srp-worker",
+   "desc": "Counts verses in pushed Bible repos (VerseCounting subscription) and publishes VerseCountingResult. Its consumer, VerseReportingProcessor, isn't run locally, so the results go nowhere here."
+  },
+  {
+   "id": "fn:srp/RegisterWebhook",
+   "label": "RegisterWebhook",
+   "kind": "function",
+   "sources": [
+    {
+     "path": "repos/srp/ScriptureRenderingPipeline/OutgoingWebhook.cs",
+     "line": 61,
+     "url": "https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipeline/OutgoingWebhook.cs#L61"
+    }
+   ],
+   "attrs": {
+    "trigger": "http",
+    "methods": [
+     "POST"
+    ],
+    "route": "/api/RegisterWebhook"
+   },
+   "system": "srp",
+   "parent": "svc:srp-webhook",
+   "desc": "HTTP: registers an outgoing webhook that the WebhookDispatcher calls for matching events."
+  },
+  {
+   "id": "fn:srp/RenderDoc",
+   "label": "RenderDoc",
+   "kind": "function",
+   "sources": [
+    {
+     "path": "repos/srp/ScriptureRenderingPipeline/Rendering.cs",
+     "line": 27,
+     "url": "https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipeline/Rendering.cs#L27"
+    }
+   ],
+   "attrs": {
+    "trigger": "http",
+    "methods": [
+     "GET",
+     "POST"
+    ],
+    "route": "/api/RenderDoc"
+   },
+   "system": "srp",
+   "parent": "svc:srp-webhook",
+   "desc": "HTTP: renders a repo into a single document (for print/PDF) on demand, using the USFM renderer."
+  },
+  {
+   "id": "fn:srp/RenderingTrigger",
+   "label": "RenderingTrigger",
+   "kind": "function",
+   "sources": [
+    {
+     "path": "repos/srp/ScriptureRenderingPipelineWorker/RenderingTrigger.cs",
+     "line": 44,
+     "url": "https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/RenderingTrigger.cs#L44"
+    }
+   ],
+   "attrs": {
+    "trigger": "servicebus",
+    "topic": "WACSEvent",
+    "subscription": "RenderingWebhook"
+   },
+   "system": "srp",
+   "parent": "svc:srp-worker",
+   "desc": "The heart of the pipeline. For each push/fork/create on WACSEvent (RenderingWebhook subscription) it downloads the repo zip from WACS, detects the resource type, runs the matching renderer, uploads the output and build_log.json to $web/u/<owner>/<repo>/, and publishes RepoRendered with Success set."
+  },
+  {
+   "id": "fn:srp/RepoAnalysisTrigger",
+   "label": "RepoAnalysisTrigger",
+   "kind": "function",
+   "sources": [
+    {
+     "path": "repos/srp/ScriptureRenderingPipelineWorker/RepoAnalysisTrigger.cs",
+     "line": 31,
+     "url": "https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/RepoAnalysisTrigger.cs#L31"
+    }
+   ],
+   "attrs": {
+    "trigger": "servicebus",
+    "topic": "WACSEvent",
+    "subscription": "RepoAnalysis"
+   },
+   "system": "srp",
+   "parent": "svc:srp-worker",
+   "desc": "Works out a repo's resource type and language for every WACSEvent and publishes RepoAnalysisResult."
+  },
+  {
+   "id": "fn:srp/UnregisterWebhook",
+   "label": "UnregisterWebhook",
+   "kind": "function",
+   "sources": [
+    {
+     "path": "repos/srp/ScriptureRenderingPipeline/OutgoingWebhook.cs",
+     "line": 101,
+     "url": "https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipeline/OutgoingWebhook.cs#L101"
+    }
+   ],
+   "attrs": {
+    "trigger": "http",
+    "methods": [
+     "DELETE"
+    ],
+    "route": "/api/UnregisterWebhook"
+   },
+   "system": "srp",
+   "parent": "svc:srp-webhook",
+   "desc": "HTTP: removes an outgoing webhook registration."
+  },
+  {
+   "id": "fn:srp/Webhook",
+   "label": "Webhook",
+   "kind": "function",
+   "sources": [
+    {
+     "path": "repos/srp/ScriptureRenderingPipeline/Webhook.cs",
+     "line": 31,
+     "url": "https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipeline/Webhook.cs#L31"
+    }
+   ],
+   "attrs": {
+    "trigger": "http",
+    "methods": [
+     "POST"
+    ],
+    "route": "/webhook"
+   },
+   "system": "srp",
+   "parent": "svc:srp-webhook",
+   "desc": "POST /webhook. Deserializes the Gitea payload, reads the event type from X-GitHub-Event, rejects repos whose host isn't AllowedDomain, and publishes a WACSMessage (repo, user, action, latest commit...) to WACSEvent."
+  },
+  {
+   "id": "fn:srp/WebhookDispatcherRepoAnalysisResultTrigger",
+   "label": "WebhookDispatcherRepoAnalysisResultTrigger",
+   "kind": "function",
+   "sources": [
+    {
+     "path": "repos/srp/ScriptureRenderingPipelineWorker/WebhookDispatcherTrigger.cs",
+     "line": 69,
+     "url": "https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/WebhookDispatcherTrigger.cs#L69"
+    }
+   ],
+   "attrs": {
+    "trigger": "servicebus",
+    "topic": "RepoAnalysisResult",
+    "subscription": "WebhookDispatcher"
+   },
+   "system": "srp",
+   "parent": "svc:srp-worker",
+   "desc": "Triggers a webhook dispatch based on an analyzed message from the service bus."
+  },
+  {
+   "id": "fn:srp/WebhookDispatcherWACSMessageTrigger",
+   "label": "WebhookDispatcherWACSMessageTrigger",
+   "kind": "function",
+   "sources": [
+    {
+     "path": "repos/srp/ScriptureRenderingPipelineWorker/WebhookDispatcherTrigger.cs",
+     "line": 27,
+     "url": "https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/WebhookDispatcherTrigger.cs#L27"
+    }
+   ],
+   "attrs": {
+    "trigger": "servicebus",
+    "topic": "WACSEvent",
+    "subscription": "WebhookDispatcher"
+   },
+   "system": "srp",
+   "parent": "svc:srp-worker",
+   "desc": "Processes incoming WACS messages from the service bus and dispatches to webhooks."
+  },
+  {
+   "id": "make:build",
+   "label": "make build",
+   "kind": "make",
+   "sources": [
+    {
+     "path": "Makefile",
+     "line": 33,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L33"
+    }
+   ],
+   "attrs": {
+    "recipe": [
+     "$(COMPOSE) build"
+    ]
+   },
+   "system": "umbrella",
+   "parent": "sys:umbrella",
+   "desc": "Build all locally-built images"
+  },
+  {
+   "id": "make:bump",
+   "label": "make bump",
+   "kind": "make",
+   "sources": [
+    {
+     "path": "Makefile",
+     "line": 99,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L99"
+    }
+   ],
+   "attrs": {
+    "recipe": [
+     "git submodule update --remote",
+     "@git submodule status",
+     "@echo \"Review with 'git diff --submodule', then commit the new pins.\""
+    ]
+   },
+   "system": "umbrella",
+   "parent": "sys:umbrella",
+   "desc": "Move submodules to the tip of their tracked branches (review, then commit)"
+  },
+  {
+   "id": "make:down",
+   "label": "make down",
+   "kind": "make",
+   "sources": [
+    {
+     "path": "Makefile",
+     "line": 41,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L41"
+    }
+   ],
+   "attrs": {
+    "recipe": [
+     "$(COMPOSE) --profile tools down --remove-orphans"
+    ]
+   },
+   "system": "umbrella",
+   "parent": "sys:umbrella",
+   "desc": "Stop containers (keeps data volumes)"
+  },
+  {
+   "id": "make:graph",
+   "label": "make graph",
+   "kind": "make",
+   "sources": [
+    {
+     "path": "Makefile",
+     "line": 88,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L88"
+    }
+   ],
+   "attrs": {
+    "recipe": [
+     "python3 tools/graph/build.py"
+    ]
+   },
+   "system": "umbrella",
+   "parent": "sys:umbrella",
+   "desc": "Regenerate the interactive architecture graph (docs/architecture/index.html)"
+  },
+  {
+   "id": "make:graph-check",
+   "label": "make graph-check",
+   "kind": "make",
+   "sources": [
+    {
+     "path": "Makefile",
+     "line": 92,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L92"
+    }
+   ],
+   "attrs": {
+    "recipe": [
+     "python3 tools/graph/build.py --check"
+    ]
+   },
+   "system": "umbrella",
+   "parent": "sys:umbrella",
+   "desc": "Fail if docs/architecture/ is out of date with the code"
+  },
+  {
+   "id": "make:help",
+   "label": "make help",
+   "kind": "make",
+   "sources": [
+    {
+     "path": "Makefile",
+     "line": 18,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L18"
+    }
+   ],
+   "attrs": {
+    "recipe": [
+     "@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = \":.*?## \"}; {printf \"  \\033[36m%-12s\\033[0m %s\\n\", $$1, $$2}'"
+    ]
+   },
+   "system": "umbrella",
+   "parent": "sys:umbrella",
+   "desc": "Show this help"
+  },
+  {
+   "id": "make:import",
+   "label": "make import",
+   "kind": "make",
+   "sources": [
+    {
+     "path": "Makefile",
+     "line": 65,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L65"
+    }
+   ],
+   "attrs": {
+    "recipe": [
+     "@test -n \"$(URL)\" || { echo \"usage: make import URL=<git url> [AS=owner/repo] [WAIT=300]\" >&2; exit 2; }",
+     "./tools/cli/fdb import \"$(URL)\" $(if $(AS),--as \"$(AS)\") $(if $(WAIT),--wait $(WAIT))"
+    ]
+   },
+   "system": "umbrella",
+   "parent": "sys:umbrella",
+   "desc": "Import a git repo into the local WACS (URL=<git url> [AS=owner/repo] [WAIT=300])"
+  },
+  {
+   "id": "make:init",
+   "label": "make init",
+   "kind": "make",
+   "sources": [
+    {
+     "path": "Makefile",
+     "line": 22,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L22"
+    }
+   ],
+   "attrs": {
+    "recipe": [
+     "git submodule update --init --recursive"
+    ]
+   },
+   "system": "umbrella",
+   "parent": "sys:umbrella",
+   "desc": "Check out the pinned submodule commits"
+  },
+  {
+   "id": "make:logs",
+   "label": "make logs",
+   "kind": "make",
+   "sources": [
+    {
+     "path": "Makefile",
+     "line": 53,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L53"
+    }
+   ],
+   "attrs": {
+    "recipe": [
+     "$(COMPOSE) logs -f --tail 100 $(S)"
+    ]
+   },
+   "system": "umbrella",
+   "parent": "sys:umbrella",
+   "desc": "Follow logs (S=service to filter, e.g. make logs S=srp-worker)"
+  },
+  {
+   "id": "make:nuke",
+   "label": "make nuke",
+   "kind": "make",
+   "sources": [
+    {
+     "path": "Makefile",
+     "line": 45,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L45"
+    }
+   ],
+   "attrs": {
+    "recipe": [
+     "$(COMPOSE) --profile tools down -v --remove-orphans"
+    ]
+   },
+   "system": "umbrella",
+   "parent": "sys:umbrella",
+   "desc": "Stop containers and delete all data volumes"
+  },
+  {
+   "id": "make:prepare",
+   "label": "make prepare",
+   "kind": "make",
+   "sources": [
+    {
+     "path": "Makefile",
+     "line": 26,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L26"
+    }
+   ],
+   "attrs": {
+    "recipe": [
+     "@test -f repos/wacs/.env && test -d repos/srp/PipelineCommon && test -d repos/languageapi/controller \\",
+     "|| { echo \"Submodules missing: run 'make init' first\" >&2; exit 1; }",
+     "@mkdir -p .local",
+     "@if [ -n \"$(EXTRA_CA_FILE)\" ]; then cp \"$(EXTRA_CA_FILE)\" .local/extra-ca.pem; else : > .local/extra-ca.pem; fi"
+    ]
+   },
+   "system": "umbrella",
+   "parent": "sys:umbrella",
+   "desc": "Internal step behind build/up: fails fast if the submodules aren't checked out, and stages the optional EXTRA_CA_FILE as .local/extra-ca.pem for image builds."
+  },
+  {
+   "id": "make:ps",
+   "label": "make ps",
+   "kind": "make",
+   "sources": [
+    {
+     "path": "Makefile",
+     "line": 49,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L49"
+    }
+   ],
+   "attrs": {
+    "recipe": [
+     "$(COMPOSE) ps -a"
+    ]
+   },
+   "system": "umbrella",
+   "parent": "sys:umbrella",
+   "desc": "Show service status"
+  },
+  {
+   "id": "make:put",
+   "label": "make put",
+   "kind": "make",
+   "sources": [
+    {
+     "path": "Makefile",
+     "line": 70,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L70"
+    }
+   ],
+   "attrs": {
+    "recipe": [
+     "@test -n \"$(REPO)\" -a -n \"$(FILE_PATH)\" -a -n \"$(SRC)\" || { echo \"usage: make put REPO=o/r FILE_PATH=<path> SRC=<file> [MSG=..] [WAIT=300]\" >&2; exit 2; }",
+     "./tools/cli/fdb put \"$(REPO)\" \"$(FILE_PATH)\" \"$(SRC)\" $(if $(MSG),-m \"$(MSG)\") $(if $(WAIT),--wait $(WAIT))"
+    ]
+   },
+   "system": "umbrella",
+   "parent": "sys:umbrella",
+   "desc": "Replace one file in one commit (REPO=owner/repo FILE_PATH=<path in repo> SRC=<local file> [MSG=] [WAIT=])"
+  },
+  {
+   "id": "make:repos",
+   "label": "make repos",
+   "kind": "make",
+   "sources": [
+    {
+     "path": "Makefile",
+     "line": 80,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L80"
+    }
+   ],
+   "attrs": {
+    "recipe": [
+     "./tools/cli/fdb list"
+    ]
+   },
+   "system": "umbrella",
+   "parent": "sys:umbrella",
+   "desc": "List local WACS repos and their pipeline state"
+  },
+  {
+   "id": "make:reset",
+   "label": "make reset",
+   "kind": "make",
+   "sources": [
+    {
+     "path": "Makefile",
+     "line": 96,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L96"
+    }
+   ],
+   "attrs": {},
+   "system": "umbrella",
+   "parent": "sys:umbrella",
+   "desc": "Fresh stack from scratch: nuke → up → seed → smoke. The first run builds images (~5–10 min). Run this when anything is weird.",
+   "tips": [
+    "Afterwards open the WACS demo repo and the rendered page."
+   ]
+  },
+  {
+   "id": "make:seed",
+   "label": "make seed",
+   "kind": "make",
+   "sources": [
+    {
+     "path": "Makefile",
+     "line": 57,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L57"
+    }
+   ],
+   "attrs": {
+    "recipe": [
+     "./seed/seed.sh"
+    ]
+   },
+   "system": "umbrella",
+   "parent": "sys:umbrella",
+   "desc": "Idempotent setup: WACS admin, token trigger, system webhook WACS → SRP, Azurite containers + print template, languageapi reference data, and the demo repo (whose first commit fires the pipeline)."
+  },
+  {
+   "id": "make:smoke",
+   "label": "make smoke",
+   "kind": "make",
+   "sources": [
+    {
+     "path": "Makefile",
+     "line": 61,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L61"
+    }
+   ],
+   "attrs": {
+    "recipe": [
+     "./scripts/smoke.sh"
+    ]
+   },
+   "system": "umbrella",
+   "parent": "sys:umbrella",
+   "desc": "Health checks for every service, then the real end-to-end test: push a commit with a unique marker, wait for build_log.json to contain it, then wait for Hasura to show fresh rendered_content rows."
+  },
+  {
+   "id": "make:status",
+   "label": "make status",
+   "kind": "make",
+   "sources": [
+    {
+     "path": "Makefile",
+     "line": 75,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L75"
+    }
+   ],
+   "attrs": {
+    "recipe": [
+     "@test -n \"$(REPO)\" || { echo \"usage: make status REPO=owner/repo [WAIT=300]\" >&2; exit 2; }",
+     "./tools/cli/fdb status \"$(REPO)\" $(if $(WAIT),--wait $(WAIT))"
+    ]
+   },
+   "system": "umbrella",
+   "parent": "sys:umbrella",
+   "desc": "Pipeline status of a repo's head commit (REPO=owner/repo [WAIT=300])"
+  },
+  {
+   "id": "make:test-tools",
+   "label": "make test-tools",
+   "kind": "make",
+   "sources": [
+    {
+     "path": "Makefile",
+     "line": 84,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L84"
+    }
+   ],
+   "attrs": {
+    "recipe": [
+     "./tools/test.sh"
+    ]
+   },
+   "system": "umbrella",
+   "parent": "sys:umbrella",
+   "desc": "Offline end-to-end test of the fdb CLI and HTTP API"
+  },
+  {
+   "id": "make:up",
+   "label": "make up",
+   "kind": "make",
+   "sources": [
+    {
+     "path": "Makefile",
+     "line": 37,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L37"
+    }
+   ],
+   "attrs": {
+    "recipe": [
+     "$(COMPOSE) up -d --build --wait"
+    ]
+   },
+   "system": "umbrella",
+   "parent": "sys:umbrella",
+   "desc": "Build (if needed) and start everything, waiting until every healthcheck passes."
+  },
+  {
+   "id": "py:fdb.cli",
+   "label": "fdb.cli",
+   "kind": "module",
+   "sources": [
+    {
+     "path": "tools/fdb/cli.py",
+     "line": 1,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/tools/fdb/cli.py"
+    }
+   ],
+   "attrs": {},
+   "system": "fdb",
+   "parent": "sys:fdb",
+   "desc": "fdb command line. Run `tools/cli/fdb --help`."
+  },
+  {
+   "id": "py:fdb.clients",
+   "label": "fdb.clients",
+   "kind": "module",
+   "sources": [
+    {
+     "path": "tools/fdb/clients.py",
+     "line": 1,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/tools/fdb/clients.py"
+    }
+   ],
+   "attrs": {},
+   "system": "fdb",
+   "parent": "sys:fdb",
+   "desc": "Minimal stdlib clients for Gitea (WACS), Azurite blob, Hasura, and git."
+  },
+  {
+   "id": "py:fdb.config",
+   "label": "fdb.config",
+   "kind": "module",
+   "sources": [
+    {
+     "path": "tools/fdb/config.py",
+     "line": 1,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/tools/fdb/config.py"
+    }
+   ],
+   "attrs": {},
+   "system": "fdb",
+   "parent": "sys:fdb",
+   "desc": "Endpoints and credentials, from the environment."
+  },
+  {
+   "id": "py:fdb.core",
+   "label": "fdb.core",
+   "kind": "module",
+   "sources": [
+    {
+     "path": "tools/fdb/core.py",
+     "line": 1,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/tools/fdb/core.py"
+    }
+   ],
+   "attrs": {},
+   "system": "fdb",
+   "parent": "sys:fdb",
+   "desc": "fdb operations. Every function returns a plain dict, used as-is by the CLI (--json) and HTTP API."
+  },
+  {
+   "id": "py:fdb.server",
+   "label": "fdb.server",
+   "kind": "module",
+   "sources": [
+    {
+     "path": "tools/fdb/server.py",
+     "line": 1,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/tools/fdb/server.py"
+    }
+   ],
+   "attrs": {},
+   "system": "fdb",
+   "parent": "sys:fdb",
+   "desc": "fdb HTTP API: the same operations as the CLI, as JSON over HTTP. Local use only (no auth)."
+  },
+  {
+   "id": "renderer:BibleRenderer",
+   "label": "BibleRenderer",
+   "kind": "module",
+   "sources": [
+    {
+     "path": "repos/srp/ScriptureRenderingPipelineWorker/Renderers/BibleRenderer.cs",
+     "line": 1,
+     "url": "https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/Renderers/BibleRenderer.cs"
+    }
+   ],
+   "attrs": {},
+   "system": "srp",
+   "parent": "svc:srp-worker",
+   "desc": "Renderer used by `RenderingTrigger`.",
+   "desc_auto": true
+  },
+  {
+   "id": "renderer:CommentaryRenderer",
+   "label": "CommentaryRenderer",
+   "kind": "module",
+   "sources": [
+    {
+     "path": "repos/srp/ScriptureRenderingPipelineWorker/Renderers/CommentaryRenderer.cs",
+     "line": 1,
+     "url": "https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/Renderers/CommentaryRenderer.cs"
+    }
+   ],
+   "attrs": {},
+   "system": "srp",
+   "parent": "svc:srp-worker",
+   "desc": "Renderer used by `RenderingTrigger`.",
+   "desc_auto": true
+  },
+  {
+   "id": "renderer:TranslationManualRenderer",
+   "label": "TranslationManualRenderer",
+   "kind": "module",
+   "sources": [
+    {
+     "path": "repos/srp/ScriptureRenderingPipelineWorker/Renderers/TranslationManualRenderer.cs",
+     "line": 1,
+     "url": "https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/Renderers/TranslationManualRenderer.cs"
+    }
+   ],
+   "attrs": {},
+   "system": "srp",
+   "parent": "svc:srp-worker",
+   "desc": "Renderer used by `RenderingTrigger`.",
+   "desc_auto": true
+  },
+  {
+   "id": "renderer:TranslationNotesRenderer",
+   "label": "TranslationNotesRenderer",
+   "kind": "module",
+   "sources": [
+    {
+     "path": "repos/srp/ScriptureRenderingPipelineWorker/Renderers/TranslationNotesRenderer.cs",
+     "line": 1,
+     "url": "https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/Renderers/TranslationNotesRenderer.cs"
+    }
+   ],
+   "attrs": {},
+   "system": "srp",
+   "parent": "svc:srp-worker",
+   "desc": "Renderer used by `RenderingTrigger`.",
+   "desc_auto": true
+  },
+  {
+   "id": "renderer:TranslationQuestionsRenderer",
+   "label": "TranslationQuestionsRenderer",
+   "kind": "module",
+   "sources": [
+    {
+     "path": "repos/srp/ScriptureRenderingPipelineWorker/Renderers/TranslationQuestionsRenderer.cs",
+     "line": 1,
+     "url": "https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/Renderers/TranslationQuestionsRenderer.cs"
+    }
+   ],
+   "attrs": {},
+   "system": "srp",
+   "parent": "svc:srp-worker",
+   "desc": "Renderer used by `RenderingTrigger`.",
+   "desc_auto": true
+  },
+  {
+   "id": "renderer:TranslationWordsRenderer",
+   "label": "TranslationWordsRenderer",
+   "kind": "module",
+   "sources": [
+    {
+     "path": "repos/srp/ScriptureRenderingPipelineWorker/Renderers/TranslationWordsRenderer.cs",
+     "line": 1,
+     "url": "https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/Renderers/TranslationWordsRenderer.cs"
+    }
+   ],
+   "attrs": {},
+   "system": "srp",
+   "parent": "svc:srp-worker",
+   "desc": "Renderer used by `RenderingTrigger`.",
+   "desc_auto": true
+  },
+  {
+   "id": "renderer:USFMRenderer",
+   "label": "USFMRenderer",
+   "kind": "module",
+   "sources": [],
+   "attrs": {},
+   "system": "srp",
+   "parent": "sys:srp",
+   "desc": "Renderer used by `MergeTrigger`, `RenderDoc`.",
+   "desc_auto": true
+  },
+  {
+   "id": "rest:hasura/consolidated-repos",
+   "label": "/api/rest/consolidated-repos",
+   "kind": "endpoint",
+   "sources": [
+    {
+     "path": "repos/languageapi/hasura/metadata/rest_endpoints.yaml",
+     "line": 1,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/hasura/metadata/rest_endpoints.yaml"
+    }
+   ],
+   "attrs": {
+    "methods": [
+     "GET"
+    ],
+    "query": "Consolidated Repos"
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-hasura",
+   "desc": "`/api/rest/consolidated-repos` served by `lapi-hasura`.",
+   "desc_auto": true
+  },
+  {
+   "id": "rest:hasura/langnames",
+   "label": "/api/rest/langnames",
+   "kind": "endpoint",
+   "sources": [
+    {
+     "path": "repos/languageapi/hasura/metadata/rest_endpoints.yaml",
+     "line": 1,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/hasura/metadata/rest_endpoints.yaml"
+    }
+   ],
+   "attrs": {
+    "methods": [
+     "GET"
+    ],
+    "query": "langnames"
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-hasura",
+   "desc": "`/api/rest/langnames` served by `lapi-hasura`.",
+   "desc_auto": true
+  },
+  {
+   "id": "route:lapi/content",
+   "label": "/api/content",
+   "kind": "function",
+   "sources": [
+    {
+     "path": "repos/languageapi/controller/src/routes/content.ts",
+     "line": 43,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/routes/content.ts#L43"
+    }
+   ],
+   "attrs": {
+    "trigger": "http",
+    "route": "/api/content",
+    "methods": [
+     "GET",
+     "POST",
+     "DELETE"
+    ]
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-controller",
+   "desc": "HTTP GET/POST/DELETE /api/content.",
+   "desc_auto": true
+  },
+  {
+   "id": "route:lapi/contentWithRendering",
+   "label": "/api/contentWithRendering",
+   "kind": "function",
+   "sources": [
+    {
+     "path": "repos/languageapi/controller/src/routes/contentWithRendering.ts",
+     "line": 28,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/routes/contentWithRendering.ts#L28"
+    }
+   ],
+   "attrs": {
+    "trigger": "http",
+    "route": "/api/contentWithRendering",
+    "methods": [
+     "POST"
+    ]
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-controller",
+   "desc": "HTTP POST /api/contentWithRendering.",
+   "desc_auto": true
+  },
+  {
+   "id": "route:lapi/country",
+   "label": "/api/country",
+   "kind": "function",
+   "sources": [
+    {
+     "path": "repos/languageapi/controller/src/routes/country.ts",
+     "line": 41,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/routes/country.ts#L41"
+    }
+   ],
+   "attrs": {
+    "trigger": "http",
+    "route": "/api/country",
+    "methods": [
+     "GET",
+     "POST",
+     "DELETE"
+    ]
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-controller",
+   "desc": "HTTP GET/POST/DELETE /api/country.",
+   "desc_auto": true
+  },
+  {
+   "id": "route:lapi/git",
+   "label": "/api/git",
+   "kind": "function",
+   "sources": [
+    {
+     "path": "repos/languageapi/controller/src/routes/git.ts",
+     "line": 42,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/routes/git.ts#L42"
+    }
+   ],
+   "attrs": {
+    "trigger": "http",
+    "route": "/api/git",
+    "methods": [
+     "GET",
+     "POST",
+     "DELETE"
+    ]
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-controller",
+   "desc": "HTTP GET/POST/DELETE /api/git.",
+   "desc_auto": true
+  },
+  {
+   "id": "route:lapi/language",
+   "label": "/api/language",
+   "kind": "function",
+   "sources": [
+    {
+     "path": "repos/languageapi/controller/src/routes/language.ts",
+     "line": 44,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/routes/language.ts#L44"
+    }
+   ],
+   "attrs": {
+    "trigger": "http",
+    "route": "/api/language",
+    "methods": [
+     "GET",
+     "POST",
+     "DELETE"
+    ]
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-controller",
+   "desc": "HTTP GET/POST/DELETE /api/language.",
+   "desc_auto": true
+  },
+  {
+   "id": "route:lapi/region",
+   "label": "/api/region",
+   "kind": "function",
+   "sources": [
+    {
+     "path": "repos/languageapi/controller/src/routes/region.ts",
+     "line": 41,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/routes/region.ts#L41"
+    }
+   ],
+   "attrs": {
+    "trigger": "http",
+    "route": "/api/region",
+    "methods": [
+     "GET",
+     "POST",
+     "DELETE"
+    ]
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-controller",
+   "desc": "HTTP GET/POST/DELETE /api/region.",
+   "desc_auto": true
+  },
+  {
+   "id": "route:lapi/rendering",
+   "label": "/api/rendering",
+   "kind": "function",
+   "sources": [
+    {
+     "path": "repos/languageapi/controller/src/routes/rendering.ts",
+     "line": 43,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/routes/rendering.ts#L43"
+    }
+   ],
+   "attrs": {
+    "trigger": "http",
+    "route": "/api/rendering",
+    "methods": [
+     "GET",
+     "POST",
+     "DELETE"
+    ]
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-controller",
+   "desc": "HTTP GET/POST/DELETE /api/rendering.",
+   "desc_auto": true
+  },
+  {
+   "id": "script:scripts/lib.sh",
+   "label": "scripts/lib.sh",
+   "kind": "script",
+   "sources": [
+    {
+     "path": "scripts/lib.sh",
+     "line": 1,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/scripts/lib.sh"
+    }
+   ],
+   "attrs": {},
+   "system": "umbrella",
+   "parent": "sys:umbrella",
+   "desc": "Shared helpers sourced by the seed, smoke and tool tests: ports/URLs, `compose`, `gitea_api`, and `push_fixture` (commits seed/fixtures through the Gitea contents API, which fires a push webhook)."
+  },
+  {
+   "id": "script:scripts/smoke.sh",
+   "label": "scripts/smoke.sh",
+   "kind": "script",
+   "sources": [
+    {
+     "path": "scripts/smoke.sh",
+     "line": 1,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/scripts/smoke.sh"
+    }
+   ],
+   "attrs": {},
+   "system": "umbrella",
+   "parent": "sys:umbrella",
+   "desc": "Smoke test for the local stack (run after `make up && make seed`): 1. every service answers its health endpoint 2. end-to-end: a new commit to the demo repo is rendered by SRP into Azurite and recorded by languageapi (visible through Hasura)"
+  },
+  {
+   "id": "script:seed/seed.sh",
+   "label": "seed/seed.sh",
+   "kind": "script",
+   "sources": [
+    {
+     "path": "seed/seed.sh",
+     "line": 1,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/seed/seed.sh"
+    }
+   ],
+   "attrs": {},
+   "system": "umbrella",
+   "parent": "sys:umbrella",
+   "desc": "Idempotent seeding for the local stack. Safe to re-run; run after `make up`. 1. WACS: admin user, token-scope trigger, system webhook -> SRP 2. Azurite: SRP output/template containers + print template 3. languageapi: minimal reference data (region, country, language \"en\") 4. WACS: demo org + Bible repo from seed/fixtures (its commit fires the webhook -> render)"
+  },
+  {
+   "id": "script:tools/cli/fdb",
+   "label": "tools/cli/fdb",
+   "kind": "script",
+   "sources": [
+    {
+     "path": "tools/cli/fdb",
+     "line": 1,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/tools/cli/fdb"
+    }
+   ],
+   "attrs": {},
+   "system": "fdb",
+   "parent": "sys:fdb",
+   "desc": "fdb: import, edit and follow WACS repos through the local stack. See `tools/cli/fdb --help`."
+  },
+  {
+   "id": "script:tools/test.sh",
+   "label": "tools/test.sh",
+   "kind": "script",
+   "sources": [
+    {
+     "path": "tools/test.sh",
+     "line": 1,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/tools/test.sh"
+    }
+   ],
+   "attrs": {},
+   "system": "fdb",
+   "parent": "sys:fdb",
+   "desc": "Offline end-to-end test of the fdb CLI (tools/cli/fdb) and HTTP API (fdb-api). Run after `make up seed`. CLI : import a throwaway git repo (file://, built from seed/fixtures), put an edit, wait for the pipeline, check the rendered page. HTTP: import the seeded demo repo from inside the network, put an edit, wait, check. Guards: non-local WACS URLs are refused; imported mirrors can't push to their source."
+  },
+  {
+   "id": "sub:audiobiel/languageapi",
+   "label": "languageapi",
+   "kind": "subscription",
+   "sources": [],
+   "attrs": {
+    "topic": "audiobiel",
+    "filter": "all messages"
+   },
+   "system": "infra",
+   "parent": "svc:servicebus",
+   "desc": "Copy of the `audiobiel` topic. Receives all messages; consumed by `waAudioRenderings`.",
+   "desc_auto": true
+  },
+  {
+   "id": "sub:mergedresult/NotificationHandler",
+   "label": "NotificationHandler",
+   "kind": "subscription",
+   "sources": [],
+   "attrs": {
+    "topic": "mergedresult",
+    "filter": "all messages"
+   },
+   "system": "infra",
+   "parent": "svc:servicebus",
+   "desc": "Copy of the `mergedresult` topic. Receives all messages; consumed by `VerseReportingProcessor`.",
+   "desc_auto": true
+  },
+  {
+   "id": "sub:mergerequest/MergeRequest",
+   "label": "MergeRequest",
+   "kind": "subscription",
+   "sources": [],
+   "attrs": {
+    "topic": "mergerequest",
+    "filter": "all messages"
+   },
+   "system": "infra",
+   "parent": "svc:servicebus",
+   "desc": "Copy of the `mergerequest` topic. Receives all messages; consumed by `MergeTrigger`.",
+   "desc_auto": true
+  },
+  {
+   "id": "sub:repoanalysisresult/WebhookDispatcher",
+   "label": "WebhookDispatcher",
+   "kind": "subscription",
+   "sources": [],
+   "attrs": {
+    "topic": "repoanalysisresult",
+    "filter": "all messages"
+   },
+   "system": "infra",
+   "parent": "svc:servicebus",
+   "desc": "Copy of the `repoanalysisresult` topic. Receives all messages; consumed by `WebhookDispatcherRepoAnalysisResultTrigger`.",
+   "desc_auto": true
+  },
+  {
+   "id": "sub:reporendered/reporendered-languageapi",
+   "label": "reporendered-languageapi",
+   "kind": "subscription",
+   "sources": [],
+   "attrs": {
+    "topic": "reporendered",
+    "filter": "all messages"
+   },
+   "system": "infra",
+   "parent": "svc:servicebus",
+   "desc": "Copy of the `reporendered` topic. Receives all messages; consumed by `waLangApiRenderings`.",
+   "desc_auto": true
+  },
+  {
+   "id": "sub:versecountingresult/InternalProcessor",
+   "label": "InternalProcessor",
+   "kind": "subscription",
+   "sources": [],
+   "attrs": {
+    "topic": "versecountingresult",
+    "filter": "user.success=true"
+   },
+   "system": "infra",
+   "parent": "svc:servicebus",
+   "desc": "Copy of the `versecountingresult` topic. Receives user.success=true; consumed by `VerseReportingProcessor`.",
+   "desc_auto": true
+  },
+  {
+   "id": "sub:wacsevent/InternalProcessor",
+   "label": "InternalProcessor",
+   "kind": "subscription",
+   "sources": [],
+   "attrs": {
+    "topic": "wacsevent",
+    "filter": "Action='deleted' and EventType='repository'"
+   },
+   "system": "infra",
+   "parent": "svc:servicebus",
+   "desc": "Copy of the `wacsevent` topic. Receives Action='deleted' and EventType='repository'; consumed by `VerseReportingProcessor`.",
+   "desc_auto": true
+  },
+  {
+   "id": "sub:wacsevent/RenderingWebhook",
+   "label": "RenderingWebhook",
+   "kind": "subscription",
+   "sources": [],
+   "attrs": {
+    "topic": "wacsevent",
+    "filter": "eventType='push' or eventType='fork' or eventType='create'"
+   },
+   "system": "infra",
+   "parent": "svc:servicebus",
+   "desc": "Copy of the `wacsevent` topic. Receives eventType='push' or eventType='fork' or eventType='create'; consumed by `RenderingTrigger`.",
+   "desc_auto": true
+  },
+  {
+   "id": "sub:wacsevent/RepoAnalysis",
+   "label": "RepoAnalysis",
+   "kind": "subscription",
+   "sources": [],
+   "attrs": {
+    "topic": "wacsevent",
+    "filter": "all messages"
+   },
+   "system": "infra",
+   "parent": "svc:servicebus",
+   "desc": "Copy of the `wacsevent` topic. Receives all messages; consumed by `RepoAnalysisTrigger`.",
+   "desc_auto": true
+  },
+  {
+   "id": "sub:wacsevent/VerseCounting",
+   "label": "VerseCounting",
+   "kind": "subscription",
+   "sources": [],
+   "attrs": {
+    "topic": "wacsevent",
+    "filter": "eventType='push' or eventType='fork' or eventType='create'"
+   },
+   "system": "infra",
+   "parent": "svc:servicebus",
+   "desc": "Copy of the `wacsevent` topic. Receives eventType='push' or eventType='fork' or eventType='create'; consumed by `ProgressReporting`.",
+   "desc_auto": true
+  },
+  {
+   "id": "sub:wacsevent/WebhookDispatcher",
+   "label": "WebhookDispatcher",
+   "kind": "subscription",
+   "sources": [],
+   "attrs": {
+    "topic": "wacsevent",
+    "filter": "all messages"
+   },
+   "system": "infra",
+   "parent": "svc:servicebus",
+   "desc": "Copy of the `wacsevent` topic. Receives all messages; consumed by `WebhookDispatcherWACSMessageTrigger`.",
+   "desc_auto": true
+  },
+  {
+   "id": "sub:wacsevent/languageapi",
+   "label": "languageapi",
+   "kind": "subscription",
+   "sources": [],
+   "attrs": {
+    "topic": "wacsevent",
+    "filter": "all messages"
+   },
+   "system": "infra",
+   "parent": "svc:servicebus",
+   "desc": "Copy of the `wacsevent` topic. Receives all messages; consumed by `waLangApiGitTopics`.",
+   "desc_auto": true
+  },
+  {
+   "id": "svc:BTTWriterCatalog",
+   "label": "BTTWriterCatalog",
+   "kind": "service",
+   "sources": [
+    {
+     "path": "repos/srp/BTTWriterCatalog",
+     "line": 1,
+     "url": "https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/tree/d5255debf3bfade4ce1be9d4df37f77a18407f0f/BTTWriterCatalog"
+    }
+   ],
+   "attrs": {
+    "inactive": true,
+    "project": "BTTWriterCatalog"
+   },
+   "system": "srp",
+   "parent": "sys:srp",
+   "desc": "Builds the BTT Writer, BIEL and unfoldingWord catalogs from Cosmos DB change-feed triggers. It runs in production but not here, because it needs Cosmos DB."
+  },
+  {
+   "id": "svc:VerseReportingProcessor",
+   "label": "VerseReportingProcessor",
+   "kind": "service",
+   "sources": [
+    {
+     "path": "repos/srp/VerseReportingProcessor",
+     "line": 1,
+     "url": "https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/tree/d5255debf3bfade4ce1be9d4df37f77a18407f0f/VerseReportingProcessor"
+    }
+   ],
+   "attrs": {
+    "inactive": true,
+    "project": "VerseReportingProcessor"
+   },
+   "system": "srp",
+   "parent": "sys:srp",
+   "desc": "Consumes verse-counting results and merge notifications and reports them to PORT/Dataverse. It runs in production but not here: it needs a SQL Server stored procedure that isn't in the repo, plus PORT/Dataverse."
+  },
+  {
+   "id": "svc:azurite",
+   "label": "azurite",
+   "kind": "service",
+   "sources": [
+    {
+     "path": "compose/infra.yaml",
+     "line": 3,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/infra.yaml#L3"
+    }
+   ],
+   "attrs": {
+    "image": "mcr.microsoft.com/azure-storage/azurite:3.35.0",
+    "ports": [
+     "10000:10000",
+     "10001:10001",
+     "10002:10002"
+    ],
+    "command": "azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --tableHost 0.0.0.0 --location /data --loose --skipApiVersionCheck --disableProductStyleUrl"
+   },
+   "system": "infra",
+   "parent": "sys:infra",
+   "desc": "Azure Storage emulator (blob :10000, queue :10001, table :10002). It holds the rendered site in $web and serves as AzureWebJobsStorage for every Functions host.",
+   "links": [
+    {
+     "label": "Rendered demo page",
+     "url": "http://localhost:10000/devstoreaccount1/$web/u/fielddata/en_ulb/JUD/1.html"
+    }
+   ]
+  },
+  {
+   "id": "svc:fdb-api",
+   "label": "fdb-api",
+   "kind": "service",
+   "sources": [
+    {
+     "path": "compose/tools.yaml",
+     "line": 4,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/tools.yaml#L4"
+    }
+   ],
+   "attrs": {
+    "image": "fdb/fdb-api:local",
+    "ports": [
+     "127.0.0.1:7080:7080"
+    ],
+    "build_context": "tools/http"
+   },
+   "system": "fdb",
+   "parent": "sys:fdb",
+   "desc": "The fdb HTTP helper on 127.0.0.1:7080, with no auth. It does the same operations as the CLI, as JSON. tools/ is bind-mounted, so code edits apply on restart. Imported mirrors live in the fdb_imports volume.",
+   "links": [
+    {
+     "label": "Health",
+     "url": "http://127.0.0.1:7080/healthz"
+    },
+    {
+     "label": "List repos",
+     "url": "http://127.0.0.1:7080/repos"
+    }
+   ]
+  },
+  {
+   "id": "svc:lapi-controller",
+   "label": "lapi-controller",
+   "kind": "service",
+   "sources": [
+    {
+     "path": "compose/languageapi.yaml",
+     "line": 58,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/languageapi.yaml#L58"
+    }
+   ],
+   "attrs": {
+    "image": "fdb/lapi-controller:local",
+    "ports": [
+     "7072:80"
+    ],
+    "build_context": "repos/languageapi/controller",
+    "source_dir": "repos/languageapi/controller"
+   },
+   "system": "languageapi",
+   "parent": "sys:languageapi",
+   "desc": "languageapi's write side (Node Azure Functions v4, built by the umbrella's controller.Dockerfile). REST routes under /api/* take reference data. Service Bus consumers record renderings and git topics. Timers backfill localizations and GL USFM sources. NODE_ENV is left unset on purpose, so it uses the production subscription names.",
+   "links": [
+    {
+     "label": "GET /api/language",
+     "url": "http://localhost:7072/api/language"
+    }
+   ]
+  },
+  {
+   "id": "svc:lapi-hasura",
+   "label": "lapi-hasura",
+   "kind": "service",
+   "sources": [
+    {
+     "path": "compose/languageapi.yaml",
+     "line": 36,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/languageapi.yaml#L36"
+    }
+   ],
+   "attrs": {
+    "image": "hasura/graphql-engine:v2.30.1.cli-migrations-v3",
+    "ports": [
+     "8080:8080"
+    ]
+   },
+   "system": "languageapi",
+   "parent": "sys:languageapi",
+   "desc": "Hasura GraphQL engine serving the public read API. The metadata (tracked tables, permissions, REST endpoints) is mounted read-only from repos/languageapi/hasura/metadata.",
+   "links": [
+    {
+     "label": "Hasura console",
+     "url": "http://localhost:8080/console"
+    }
+   ],
+   "tips": [
+    "Two objects are inconsistent by design: vw_consolidated_repos and the Consolidated Repos REST endpoint. No migration creates that view."
+   ]
+  },
+  {
+   "id": "svc:lapi-migrate",
+   "label": "lapi-migrate",
+   "kind": "service",
+   "sources": [
+    {
+     "path": "compose/languageapi.yaml",
+     "line": 22,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/languageapi.yaml#L22"
+    }
+   ],
+   "attrs": {
+    "image": "fdb/lapi-migrate:local",
+    "build_context": "repos/languageapi/controller"
+   },
+   "system": "languageapi",
+   "parent": "sys:languageapi",
+   "desc": "One-shot job (target `migrate` of docker/languageapi/controller.Dockerfile). It applies controller/drizzle/*.sql, then exits. Hasura and the controller wait for it to complete successfully."
+  },
+  {
+   "id": "svc:lapi-postgres",
+   "label": "lapi-postgres",
+   "kind": "service",
+   "sources": [
+    {
+     "path": "compose/languageapi.yaml",
+     "line": 8,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/languageapi.yaml#L8"
+    }
+   ],
+   "attrs": {
+    "image": "postgres:15.7"
+   },
+   "system": "languageapi",
+   "parent": "sys:languageapi",
+   "desc": "Postgres 15 with the languageapi data. The schema is owned by the Drizzle migrations that lapi-migrate applies."
+  },
+  {
+   "id": "svc:sb-health",
+   "label": "sb-health",
+   "kind": "service",
+   "sources": [
+    {
+     "path": "compose/infra.yaml",
+     "line": 53,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/infra.yaml#L53"
+    }
+   ],
+   "attrs": {
+    "image": "curlimages/curl:8.11.1"
+   },
+   "system": "infra",
+   "parent": "sys:infra",
+   "desc": "Sidecar that waits for the emulator's /health endpoint. The emulator image has no shell for a healthcheck, so the Functions apps depend on this instead."
+  },
+  {
+   "id": "svc:sb-sql",
+   "label": "sb-sql",
+   "kind": "service",
+   "sources": [
+    {
+     "path": "compose/infra.yaml",
+     "line": 21,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/infra.yaml#L21"
+    }
+   ],
+   "attrs": {
+    "image": "mcr.microsoft.com/mssql/server:2022-latest"
+   },
+   "system": "infra",
+   "parent": "sys:infra",
+   "desc": "SQL Server 2022, the Service Bus emulator's storage backend."
+  },
+  {
+   "id": "svc:servicebus",
+   "label": "servicebus",
+   "kind": "service",
+   "sources": [
+    {
+     "path": "compose/infra.yaml",
+     "line": 33,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/infra.yaml#L33"
+    }
+   ],
+   "attrs": {
+    "image": "mcr.microsoft.com/azure-messaging/servicebus-emulator:latest",
+    "ports": [
+     "5672:5672",
+     "5300:5300"
+    ]
+   },
+   "system": "infra",
+   "parent": "sys:infra",
+   "desc": "Azure Service Bus emulator (AMQP :5672, management :5300). Every arrow between WACS, SRP and languageapi after the first webhook goes through here. It reads its topology from config/servicebus/Config.json, which is translated from repos/srp/infra/main.bicep."
+  },
+  {
+   "id": "svc:srp-webhook",
+   "label": "srp-webhook",
+   "kind": "service",
+   "sources": [
+    {
+     "path": "compose/srp.yaml",
+     "line": 18,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/srp.yaml#L18"
+    }
+   ],
+   "attrs": {
+    "image": "fdb/srp-webhook:local",
+    "ports": [
+     "7071:80"
+    ],
+    "build_context": "repos/srp",
+    "project": "ScriptureRenderingPipeline",
+    "source_dir": "repos/srp/ScriptureRenderingPipeline"
+   },
+   "system": "srp",
+   "parent": "sys:srp",
+   "desc": "SRP front door (project ScriptureRenderingPipeline). POST /webhook validates a Gitea webhook (the repo host must equal AllowedDomain=localhost) and publishes a WACSMessage to the WACSEvent topic. It doesn't render anything itself.",
+   "links": [
+    {
+     "label": "Webhook (POST only)",
+     "url": "http://localhost:7071/webhook"
+    }
+   ],
+   "tips": [
+    "`make logs S=srp-webhook`. A 400 for garbage input is healthy (the smoke test checks for it)."
+   ]
+  },
+  {
+   "id": "svc:srp-worker",
+   "label": "srp-worker",
+   "kind": "service",
+   "sources": [
+    {
+     "path": "compose/srp.yaml",
+     "line": 41,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/srp.yaml#L41"
+    }
+   ],
+   "attrs": {
+    "image": "fdb/srp-worker:local",
+    "build_context": "repos/srp",
+    "project": "ScriptureRenderingPipelineWorker",
+    "source_dir": "repos/srp/ScriptureRenderingPipelineWorker"
+   },
+   "system": "srp",
+   "parent": "sys:srp",
+   "desc": "SRP rendering worker (project ScriptureRenderingPipelineWorker). It handles Service Bus messages only and has no public port. RenderingTrigger downloads the repo zip from WACS, picks a renderer from the resource type, writes HTML + index.json + build_log.json to the $web blob container, then publishes RepoRendered.",
+   "tips": [
+    "`make logs S=srp-worker` is the first place to look when a render doesn't show up.",
+    "Gitea credentials are keyed by the host in html_url (Gitea__localhost__*)."
+   ]
+  },
+  {
+   "id": "svc:tools",
+   "label": "tools",
+   "kind": "service",
+   "sources": [
+    {
+     "path": "compose/infra.yaml",
+     "line": 66,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/infra.yaml#L66"
+    }
+   ],
+   "attrs": {
+    "image": "mcr.microsoft.com/azure-cli:2.67.0",
+    "profiles": [
+     "tools"
+    ]
+   },
+   "system": "infra",
+   "parent": "sys:infra",
+   "desc": "On-demand Azure CLI (compose profile `tools`). The seed uses it to create blob containers and upload the print template. Try `docker compose run --rm tools az storage blob list -c '$web'`."
+  },
+  {
+   "id": "svc:wacs",
+   "label": "wacs",
+   "kind": "service",
+   "sources": [
+    {
+     "path": "compose/wacs.yaml",
+     "line": 3,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/wacs.yaml#L3"
+    }
+   ],
+   "attrs": {
+    "image": "fdb/wacs:local",
+    "ports": [
+     "3000:3000",
+     "2222:222"
+    ],
+    "build_context": "repos/wacs/wacs-gitea"
+   },
+   "system": "wacs",
+   "parent": "sys:wacs",
+   "desc": "Gitea (WACS build) serving the web UI and API on :3000. Translators push here; every push/create/repository event goes to SRP through a system webhook that `make seed` registers. Config is the upstream repos/wacs/.env with config/wacs.env layered on top.",
+   "links": [
+    {
+     "label": "Open WACS",
+     "url": "http://localhost:3000/fielddata/en_ulb"
+    },
+    {
+     "label": "API health",
+     "url": "http://localhost:3000/api/healthz"
+    }
+   ],
+   "tips": [
+    "Login fdbadmin / fdbadmin123 (seeded).",
+    "Set WACS_PREBUILT=1 to use the published image if the Go build can't reach the module proxy."
+   ]
+  },
+  {
+   "id": "svc:wacs-db",
+   "label": "wacs-db",
+   "kind": "service",
+   "sources": [
+    {
+     "path": "compose/wacs.yaml",
+     "line": 35,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/wacs.yaml#L35"
+    }
+   ],
+   "attrs": {
+    "image": "mariadb:10.11",
+    "command": "mariadbd --innodb-buffer-pool-size=256M --max_connections=200"
+   },
+   "system": "wacs",
+   "parent": "sys:wacs",
+   "desc": "MariaDB 10.11 holding Gitea's database. The seed applies seed/sql/wacs-token-trigger.sql here, because the upstream trigger script fails on MariaDB."
+  },
+  {
+   "id": "svc:wacs-redis",
+   "label": "wacs-redis",
+   "kind": "service",
+   "sources": [
+    {
+     "path": "compose/wacs.yaml",
+     "line": 52,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/wacs.yaml#L52"
+    }
+   ],
+   "attrs": {
+    "image": "valkey/valkey:7.2"
+   },
+   "system": "wacs",
+   "parent": "sys:wacs",
+   "desc": "Valkey (Redis-compatible) for Gitea's cache, queues and sessions."
+  },
+  {
+   "id": "sys:fdb",
+   "label": "fdb tooling",
+   "kind": "system",
+   "sources": [],
+   "attrs": {},
+   "system": "fdb",
+   "desc": "Helper owned by this repo for testing with real content. It imports a repo into the local WACS, edits a file in one commit, and follows that commit through WACS, render and languageapi. There's a CLI on the host (tools/cli/fdb) and an HTTP API in a container (fdb-api), and both use one stdlib-only Python package (tools/fdb)."
+  },
+  {
+   "id": "sys:infra",
+   "label": "Azure emulation",
+   "kind": "system",
+   "sources": [],
+   "attrs": {},
+   "system": "infra",
+   "desc": "Local stand-ins for the Azure services production uses. Azurite provides blob, queue and table storage, and AzureWebJobsStorage for every Functions app. The Service Bus emulator, backed by SQL Server, routes every message between the systems. Its topics, subscriptions and filters are all in config/servicebus/Config.json."
+  },
+  {
+   "id": "sys:languageapi",
+   "label": "languageapi",
+   "kind": "system",
+   "sources": [],
+   "attrs": {
+    "submodule": "repos/languageapi"
+   },
+   "system": "languageapi",
+   "desc": "The public catalogue of languages, content and renderings. Postgres holds the data, with the schema owned by Drizzle migrations. Hasura serves it read-only over GraphQL and REST. The controller (Node Azure Functions) writes to it: REST routes for reference data, Service Bus consumers for pipeline events, and timers."
+  },
+  {
+   "id": "sys:srp",
+   "label": "ScriptureRenderingPipeline",
+   "kind": "system",
+   "sources": [],
+   "attrs": {
+    "submodule": "repos/srp"
+   },
+   "system": "srp",
+   "desc": "SRP: .NET 10 isolated Azure Functions. srp-webhook is the front door: it turns a Gitea webhook into a WACSEvent message. srp-worker consumes those messages, renders the repo to static HTML in blob storage and announces RepoRendered. Other projects in the repo (catalogs, verse reporting) run in production but not here."
+  },
+  {
+   "id": "sys:umbrella",
+   "label": "Dev workflow",
+   "kind": "system",
+   "sources": [],
+   "attrs": {},
+   "system": "umbrella",
+   "desc": "How you drive the stack: make targets, the seed and smoke scripts, and the pinned submodules. `make reset` is the one command that matters on day one."
+  },
+  {
+   "id": "sys:wacs",
+   "label": "WACS",
+   "kind": "system",
+   "sources": [],
+   "attrs": {
+    "submodule": "repos/wacs"
+   },
+   "system": "wacs",
+   "desc": "WA Content Service: a WA-branded Gitea 1.23 where translation teams push content repos (Bibles, notes, words...). It is where every change starts. Each push fires a system webhook at SRP. Runs on MariaDB (wacs-db) with Valkey for cache, queue and sessions (wacs-redis)."
+  },
+  {
+   "id": "table:content",
+   "label": "content",
+   "kind": "table",
+   "sources": [
+    {
+     "path": "repos/languageapi/controller/src/db/schema/schema.ts",
+     "line": 119,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/db/schema/schema.ts#L119"
+    }
+   ],
+   "attrs": {
+    "drizzle_export": "content"
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-postgres",
+   "desc": "One row per content repo (e.g. fielddata/en_ulb): name, language, type and domain. Most other content tables hang off it."
+  },
+  {
+   "id": "table:country",
+   "label": "country",
+   "kind": "table",
+   "sources": [
+    {
+     "path": "repos/languageapi/controller/src/db/schema/schema.ts",
+     "line": 314,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/db/schema/schema.ts#L314"
+    }
+   ],
+   "attrs": {
+    "drizzle_export": "country"
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-postgres",
+   "desc": "Postgres table `country`. Touched by `/api/country`. Exposed through Hasura.",
+   "desc_auto": true
+  },
+  {
+   "id": "table:country_to_language",
+   "label": "country_to_language",
+   "kind": "table",
+   "sources": [
+    {
+     "path": "repos/languageapi/controller/src/db/schema/schema.ts",
+     "line": 330,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/db/schema/schema.ts#L330"
+    }
+   ],
+   "attrs": {
+    "drizzle_export": "countryToLanguage"
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-postgres",
+   "desc": "Postgres table `country_to_language`. Exposed through Hasura.",
+   "desc_auto": true
+  },
+  {
+   "id": "table:gateway_language_to_dependent_language",
+   "label": "gateway_language_to_dependent_language",
+   "kind": "table",
+   "sources": [
+    {
+     "path": "repos/languageapi/controller/src/db/schema/schema.ts",
+     "line": 92,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/db/schema/schema.ts#L92"
+    }
+   ],
+   "attrs": {
+    "drizzle_export": "languagesToLanguages"
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-postgres",
+   "desc": "Postgres table `gateway_language_to_dependent_language`. Exposed through Hasura.",
+   "desc_auto": true
+  },
+  {
+   "id": "table:git_repo",
+   "label": "git_repo",
+   "kind": "table",
+   "sources": [
+    {
+     "path": "repos/languageapi/controller/src/db/schema/schema.ts",
+     "line": 178,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/db/schema/schema.ts#L178"
+    }
+   ],
+   "attrs": {
+    "drizzle_export": "gitRepo"
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-postgres",
+   "desc": "Where a content row lives in WACS (repo URL and owner)."
+  },
+  {
+   "id": "table:git_topic",
+   "label": "git_topic",
+   "kind": "table",
+   "sources": [
+    {
+     "path": "repos/languageapi/controller/src/db/schema/schema.ts",
+     "line": 199,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/db/schema/schema.ts#L199"
+    }
+   ],
+   "attrs": {
+    "drizzle_export": "gitTopic"
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-postgres",
+   "desc": "Postgres table `git_topic`. Touched by `waLangApiGitTopics`. Exposed through Hasura.",
+   "desc_auto": true
+  },
+  {
+   "id": "table:language",
+   "label": "language",
+   "kind": "table",
+   "sources": [
+    {
+     "path": "repos/languageapi/controller/src/db/schema/schema.ts",
+     "line": 27,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/db/schema/schema.ts#L27"
+    }
+   ],
+   "attrs": {
+    "drizzle_export": "language"
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-postgres",
+   "desc": "Languages keyed by IETF code. The seed POSTs `en` via /api/language."
+  },
+  {
+   "id": "table:language_alternate_name",
+   "label": "language_alternate_name",
+   "kind": "table",
+   "sources": [
+    {
+     "path": "repos/languageapi/controller/src/db/schema/schema.ts",
+     "line": 75,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/db/schema/schema.ts#L75"
+    }
+   ],
+   "attrs": {
+    "drizzle_export": "languageAlternateName"
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-postgres",
+   "desc": "Postgres table `language_alternate_name`. Touched by `/api/language`. Exposed through Hasura.",
+   "desc_auto": true
+  },
+  {
+   "id": "table:localization",
+   "label": "localization",
+   "kind": "table",
+   "sources": [
+    {
+     "path": "repos/languageapi/controller/src/db/schema/schema.ts",
+     "line": 354,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/db/schema/schema.ts#L354"
+    }
+   ],
+   "attrs": {
+    "drizzle_export": "localization"
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-postgres",
+   "desc": "Postgres table `localization`. Touched by `manageLocalizationTable`. Exposed through Hasura.",
+   "desc_auto": true
+  },
+  {
+   "id": "table:nonscriptural_rendering_metadata",
+   "label": "nonscriptural_rendering_metadata",
+   "kind": "table",
+   "sources": [
+    {
+     "path": "repos/languageapi/controller/src/db/schema/schema.ts",
+     "line": 275,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/db/schema/schema.ts#L275"
+    }
+   ],
+   "attrs": {
+    "drizzle_export": "nonScripturalRenderingMetadata"
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-postgres",
+   "desc": "Postgres table `nonscriptural_rendering_metadata`. Touched by `/api/rendering`. Exposed through Hasura.",
+   "desc_auto": true
+  },
+  {
+   "id": "table:rendered_content",
+   "label": "rendered_content",
+   "kind": "table",
+   "sources": [
+    {
+     "path": "repos/languageapi/controller/src/db/schema/schema.ts",
+     "line": 225,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/db/schema/schema.ts#L225"
+    }
+   ],
+   "attrs": {
+    "drizzle_export": "rendering"
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-postgres",
+   "desc": "One row per rendered file URL in $web, linked to content. The smoke test and `fdb status` query this through Hasura to prove the pipeline finished. (Drizzle export: `rendering`.)"
+  },
+  {
+   "id": "table:repo_topic",
+   "label": "repo_topic",
+   "kind": "table",
+   "sources": [
+    {
+     "path": "repos/languageapi/controller/src/db/schema/schema.ts",
+     "line": 207,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/db/schema/schema.ts#L207"
+    }
+   ],
+   "attrs": {
+    "drizzle_export": "repoToTopic"
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-postgres",
+   "desc": "Postgres table `repo_topic`. Touched by `waLangApiGitTopics`. Exposed through Hasura.",
+   "desc_auto": true
+  },
+  {
+   "id": "table:scriptural_rendering_metadata",
+   "label": "scriptural_rendering_metadata",
+   "kind": "table",
+   "sources": [
+    {
+     "path": "repos/languageapi/controller/src/db/schema/schema.ts",
+     "line": 250,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/db/schema/schema.ts#L250"
+    }
+   ],
+   "attrs": {
+    "drizzle_export": "scripturalRenderingMetadata"
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-postgres",
+   "desc": "Postgres table `scriptural_rendering_metadata`. Touched by `/api/rendering`, `manageLocalizationTable`, `populateGlUsfmSources`, `waAudioRenderings`. Exposed through Hasura.",
+   "desc_auto": true
+  },
+  {
+   "id": "table:source_zips",
+   "label": "source_zips",
+   "kind": "table",
+   "sources": [
+    {
+     "path": "repos/languageapi/hasura/metadata/databases/languageapi/tables/public_source_zips.yaml",
+     "line": 1,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/hasura/metadata/databases/languageapi/tables/public_source_zips.yaml"
+    }
+   ],
+   "attrs": {
+    "drizzle": false
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-postgres",
+   "notes": [
+    "Tracked by Hasura; not declared in the Drizzle schema (created by raw SQL migrations or a later rename)."
+   ],
+   "desc": "Postgres table `source_zips`. Exposed through Hasura.",
+   "desc_auto": true
+  },
+  {
+   "id": "table:vw_consolidated_repos",
+   "label": "vw_consolidated_repos",
+   "kind": "table",
+   "sources": [
+    {
+     "path": "repos/languageapi/hasura/metadata/databases/languageapi/tables/public_vw_consolidated_repos.yaml",
+     "line": 1,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/hasura/metadata/databases/languageapi/tables/public_vw_consolidated_repos.yaml"
+    }
+   ],
+   "attrs": {
+    "view": true,
+    "drizzle": false,
+    "known_gap": true
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-postgres",
+   "notes": [
+    "View is tracked by Hasura but no migration creates it, so Hasura marks it inconsistent."
+   ],
+   "desc": "Postgres view `vw_consolidated_repos`. Touched by `/api/rest/consolidated-repos`. Exposed through Hasura.",
+   "desc_auto": true
+  },
+  {
+   "id": "table:vw_langnames",
+   "label": "vw_langnames",
+   "kind": "table",
+   "sources": [
+    {
+     "path": "repos/languageapi/hasura/metadata/databases/languageapi/tables/public_vw_langnames.yaml",
+     "line": 1,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/hasura/metadata/databases/languageapi/tables/public_vw_langnames.yaml"
+    }
+   ],
+   "attrs": {
+    "view": true,
+    "drizzle": false
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-postgres",
+   "notes": [
+    "Created by a migration (raw SQL), not declared in the Drizzle schema."
+   ],
+   "desc": "Postgres view `vw_langnames`. Touched by `/api/rest/langnames`. Exposed through Hasura.",
+   "desc_auto": true
+  },
+  {
+   "id": "table:wa_content_metadata",
+   "label": "wa_content_metadata",
+   "kind": "table",
+   "sources": [
+    {
+     "path": "repos/languageapi/controller/src/db/schema/schema.ts",
+     "line": 143,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/db/schema/schema.ts#L143"
+    }
+   ],
+   "attrs": {
+    "drizzle_export": "waContentMetadata"
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-postgres",
+   "desc": "Postgres table `wa_content_metadata`. Touched by `/api/content`, `populateGlUsfmSources`. Exposed through Hasura.",
+   "desc_auto": true
+  },
+  {
+   "id": "table:wa_language_metadata",
+   "label": "wa_language_metadata",
+   "kind": "table",
+   "sources": [
+    {
+     "path": "repos/languageapi/controller/src/db/schema/schema.ts",
+     "line": 53,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/db/schema/schema.ts#L53"
+    }
+   ],
+   "attrs": {
+    "drizzle_export": "waLangMetadata"
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-postgres",
+   "desc": "Postgres table `wa_language_metadata`. Touched by `/api/language`, `populateGlUsfmSources`. Exposed through Hasura.",
+   "desc_auto": true
+  },
+  {
+   "id": "table:world_region",
+   "label": "world_region",
+   "kind": "table",
+   "sources": [
+    {
+     "path": "repos/languageapi/controller/src/db/schema/schema.ts",
+     "line": 299,
+     "url": "https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/db/schema/schema.ts#L299"
+    }
+   ],
+   "attrs": {
+    "drizzle_export": "worldRegion"
+   },
+   "system": "languageapi",
+   "parent": "svc:lapi-postgres",
+   "desc": "Postgres table `world_region`. Touched by `/api/country`, `/api/region`. Exposed through Hasura.",
+   "desc_auto": true
+  },
+  {
+   "id": "topic:audiobiel",
+   "label": "audiobiel",
+   "kind": "topic",
+   "sources": [
+    {
+     "path": "config/servicebus/Config.json",
+     "line": 325,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/config/servicebus/Config.json#L325"
+    }
+   ],
+   "attrs": {},
+   "system": "infra",
+   "parent": "svc:servicebus",
+   "desc": "Audio renderings for BIEL. Declared so the controller's consumer can start; nothing publishes locally."
+  },
+  {
+   "id": "topic:mergedresult",
+   "label": "mergedresult",
+   "kind": "topic",
+   "sources": [
+    {
+     "path": "config/servicebus/Config.json",
+     "line": 292,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/config/servicebus/Config.json#L292"
+    }
+   ],
+   "attrs": {},
+   "system": "infra",
+   "parent": "svc:servicebus",
+   "desc": "Finished merges. Consumed by the NotificationHandler in VerseReportingProcessor (not run locally)."
+  },
+  {
+   "id": "topic:mergerequest",
+   "label": "mergerequest",
+   "kind": "topic",
+   "sources": [
+    {
+     "path": "config/servicebus/Config.json",
+     "line": 259,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/config/servicebus/Config.json#L259"
+    }
+   ],
+   "attrs": {},
+   "system": "infra",
+   "parent": "svc:servicebus",
+   "desc": "Merge jobs queued by POST /merge."
+  },
+  {
+   "id": "topic:repoanalysisresult",
+   "label": "repoanalysisresult",
+   "kind": "topic",
+   "sources": [
+    {
+     "path": "config/servicebus/Config.json",
+     "line": 193,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/config/servicebus/Config.json#L193"
+    }
+   ],
+   "attrs": {},
+   "system": "infra",
+   "parent": "svc:servicebus",
+   "desc": "Resource type and language detected for a repo. Consumed by the WebhookDispatcher."
+  },
+  {
+   "id": "topic:reporendered",
+   "label": "reporendered",
+   "kind": "topic",
+   "sources": [
+    {
+     "path": "config/servicebus/Config.json",
+     "line": 160,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/config/servicebus/Config.json#L160"
+    }
+   ],
+   "attrs": {},
+   "system": "infra",
+   "parent": "svc:servicebus",
+   "desc": "Published by RenderingTrigger after every render, successful or not. languageapi listens here to record what was rendered."
+  },
+  {
+   "id": "topic:versecountingresult",
+   "label": "versecountingresult",
+   "kind": "topic",
+   "sources": [
+    {
+     "path": "config/servicebus/Config.json",
+     "line": 226,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/config/servicebus/Config.json#L226"
+    }
+   ],
+   "attrs": {},
+   "system": "infra",
+   "parent": "svc:servicebus",
+   "desc": "Verse counts per pushed Bible repo. Only successful counts reach InternalProcessor (VerseReportingProcessor, not run locally)."
+  },
+  {
+   "id": "topic:wacsevent",
+   "label": "wacsevent",
+   "kind": "topic",
+   "sources": [
+    {
+     "path": "config/servicebus/Config.json",
+     "line": 9,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/config/servicebus/Config.json#L9"
+    }
+   ],
+   "attrs": {},
+   "system": "infra",
+   "parent": "svc:servicebus",
+   "desc": "The fan-out point. One message per WACS webhook, copied to every subscription: render, verse count, analysis, webhook dispatch, languageapi topics, and deletes for the verse processor. Subscriptions filter on the eventType/Action application properties."
+  },
+  {
+   "id": "vol:azurite_data",
+   "label": "azurite_data",
+   "kind": "volume",
+   "sources": [
+    {
+     "path": "compose/infra.yaml",
+     "line": 3,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/infra.yaml#L3"
+    }
+   ],
+   "attrs": {
+    "mount": "/data"
+   },
+   "system": "infra",
+   "parent": "sys:infra",
+   "desc": "Named docker volume, mounted at `/data` by `azurite`. `make nuke` deletes it.",
+   "desc_auto": true
+  },
+  {
+   "id": "vol:fdb_imports",
+   "label": "fdb_imports",
+   "kind": "volume",
+   "sources": [
+    {
+     "path": "compose/tools.yaml",
+     "line": 4,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/tools.yaml#L4"
+    }
+   ],
+   "attrs": {
+    "mount": "/data/imports"
+   },
+   "system": "fdb",
+   "parent": "sys:fdb",
+   "desc": "Named docker volume, mounted at `/data/imports` by `fdb-api`. `make nuke` deletes it.",
+   "desc_auto": true
+  },
+  {
+   "id": "vol:lapi_pgdata",
+   "label": "lapi_pgdata",
+   "kind": "volume",
+   "sources": [
+    {
+     "path": "compose/languageapi.yaml",
+     "line": 8,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/languageapi.yaml#L8"
+    }
+   ],
+   "attrs": {
+    "mount": "/var/lib/postgresql/data"
+   },
+   "system": "languageapi",
+   "parent": "sys:languageapi",
+   "desc": "Named docker volume, mounted at `/var/lib/postgresql/data` by `lapi-postgres`. `make nuke` deletes it.",
+   "desc_auto": true
+  },
+  {
+   "id": "vol:wacs_config",
+   "label": "wacs_config",
+   "kind": "volume",
+   "sources": [
+    {
+     "path": "compose/wacs.yaml",
+     "line": 3,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/wacs.yaml#L3"
+    }
+   ],
+   "attrs": {
+    "mount": "/etc/gitea"
+   },
+   "system": "wacs",
+   "parent": "sys:wacs",
+   "desc": "Named docker volume, mounted at `/etc/gitea` by `wacs`. `make nuke` deletes it.",
+   "desc_auto": true
+  },
+  {
+   "id": "vol:wacs_data",
+   "label": "wacs_data",
+   "kind": "volume",
+   "sources": [
+    {
+     "path": "compose/wacs.yaml",
+     "line": 3,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/wacs.yaml#L3"
+    }
+   ],
+   "attrs": {
+    "mount": "/var/lib/gitea"
+   },
+   "system": "wacs",
+   "parent": "sys:wacs",
+   "desc": "Named docker volume, mounted at `/var/lib/gitea` by `wacs`. `make nuke` deletes it.",
+   "desc_auto": true
+  },
+  {
+   "id": "vol:wacs_db_data",
+   "label": "wacs_db_data",
+   "kind": "volume",
+   "sources": [
+    {
+     "path": "compose/wacs.yaml",
+     "line": 35,
+     "url": "https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/wacs.yaml#L35"
+    }
+   ],
+   "attrs": {
+    "mount": "/var/lib/mysql"
+   },
+   "system": "wacs",
+   "parent": "sys:wacs",
+   "desc": "Named docker volume, mounted at `/var/lib/mysql` by `wacs-db`. `make nuke` deletes it.",
+   "desc_auto": true
+  }
+ ],
+ "edges": [
+  {
+   "source": "ep:fdb/GET /repos",
+   "target": "py:fdb.core",
+   "kind": "calls",
+   "labels": [
+    "core.list_repos()"
+   ],
+   "evidence": [
+    "tools/fdb/server.py"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "ep:fdb/GET /repos/{owner}/{repo}/pipeline",
+   "target": "py:fdb.core",
+   "kind": "calls",
+   "labels": [
+    "core.pipeline_status()"
+   ],
+   "evidence": [
+    "tools/fdb/server.py"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "ep:fdb/POST /import",
+   "target": "py:fdb.core",
+   "kind": "calls",
+   "labels": [
+    "core.import_repo()",
+    "core.pipeline_status()"
+   ],
+   "evidence": [
+    "tools/fdb/server.py"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "ep:fdb/PUT /repos/{owner}/{repo}/contents/{path}",
+   "target": "py:fdb.core",
+   "kind": "calls",
+   "labels": [
+    "core.pipeline_status()",
+    "core.put_file()"
+   ],
+   "evidence": [
+    "tools/fdb/server.py"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:lapi/manageLocalizationTable",
+   "target": "table:content",
+   "kind": "reads_writes",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/functions/localization.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:lapi/manageLocalizationTable",
+   "target": "table:git_repo",
+   "kind": "reads_writes",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/functions/localization.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:lapi/manageLocalizationTable",
+   "target": "table:language",
+   "kind": "reads_writes",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/functions/localization.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:lapi/manageLocalizationTable",
+   "target": "table:localization",
+   "kind": "reads_writes",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/functions/localization.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:lapi/manageLocalizationTable",
+   "target": "table:rendered_content",
+   "kind": "reads_writes",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/functions/localization.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:lapi/manageLocalizationTable",
+   "target": "table:scriptural_rendering_metadata",
+   "kind": "reads_writes",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/functions/localization.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:lapi/populateGlUsfmSources",
+   "target": "svc:wacs",
+   "kind": "uses",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/functions/glUsfmSources.ts reads WACS_API_URL=http://wacs:3000/api/v1"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:lapi/populateGlUsfmSources",
+   "target": "table:content",
+   "kind": "reads_writes",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/functions/glUsfmSources.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:lapi/populateGlUsfmSources",
+   "target": "table:git_repo",
+   "kind": "reads_writes",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/functions/glUsfmSources.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:lapi/populateGlUsfmSources",
+   "target": "table:language",
+   "kind": "reads_writes",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/functions/glUsfmSources.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:lapi/populateGlUsfmSources",
+   "target": "table:rendered_content",
+   "kind": "reads_writes",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/functions/glUsfmSources.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:lapi/populateGlUsfmSources",
+   "target": "table:scriptural_rendering_metadata",
+   "kind": "reads_writes",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/functions/glUsfmSources.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:lapi/populateGlUsfmSources",
+   "target": "table:wa_content_metadata",
+   "kind": "reads_writes",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/functions/glUsfmSources.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:lapi/populateGlUsfmSources",
+   "target": "table:wa_language_metadata",
+   "kind": "reads_writes",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/functions/glUsfmSources.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:lapi/waAudioRenderings",
+   "target": "route:lapi/content",
+   "kind": "calls",
+   "labels": [
+    "reuses handler"
+   ],
+   "evidence": [
+    "repos/languageapi/controller/src/functions/audio-renderings-bus.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:lapi/waAudioRenderings",
+   "target": "route:lapi/rendering",
+   "kind": "calls",
+   "labels": [
+    "reuses handler"
+   ],
+   "evidence": [
+    "repos/languageapi/controller/src/functions/audio-renderings-bus.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:lapi/waAudioRenderings",
+   "target": "table:rendered_content",
+   "kind": "reads_writes",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/functions/audio-renderings-bus.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:lapi/waAudioRenderings",
+   "target": "table:scriptural_rendering_metadata",
+   "kind": "reads_writes",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/functions/audio-renderings-bus.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:lapi/waLangApiGitTopics",
+   "target": "table:git_repo",
+   "kind": "reads_writes",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/functions/bus-wacsevent-gitTopics.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:lapi/waLangApiGitTopics",
+   "target": "table:git_topic",
+   "kind": "reads_writes",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/functions/bus-wacsevent-gitTopics.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:lapi/waLangApiGitTopics",
+   "target": "table:repo_topic",
+   "kind": "reads_writes",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/functions/bus-wacsevent-gitTopics.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:lapi/waLangApiRenderings",
+   "target": "route:lapi/content",
+   "kind": "calls",
+   "labels": [
+    "reuses handler"
+   ],
+   "evidence": [
+    "repos/languageapi/controller/src/functions/renderings-bus.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:lapi/waLangApiRenderings",
+   "target": "route:lapi/git",
+   "kind": "calls",
+   "labels": [
+    "reuses handler"
+   ],
+   "evidence": [
+    "repos/languageapi/controller/src/functions/renderings-bus.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:lapi/waLangApiRenderings",
+   "target": "route:lapi/rendering",
+   "kind": "calls",
+   "labels": [
+    "reuses handler"
+   ],
+   "evidence": [
+    "repos/languageapi/controller/src/functions/renderings-bus.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:srp/MergeTrigger",
+   "target": "renderer:USFMRenderer",
+   "kind": "calls",
+   "labels": [
+    "renders with"
+   ],
+   "evidence": [
+    "repos/srp/ScriptureRenderingPipelineWorker/MergeHandler.cs:63"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:srp/MergeTrigger",
+   "target": "topic:mergedresult",
+   "kind": "publishes",
+   "labels": [],
+   "evidence": [
+    "repos/srp/ScriptureRenderingPipelineWorker/MergeHandler.cs:47"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:srp/MergeWebhook",
+   "target": "topic:mergerequest",
+   "kind": "publishes",
+   "labels": [],
+   "evidence": [
+    "repos/srp/ScriptureRenderingPipeline/Webhook.cs:138"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:srp/ProgressReporting",
+   "target": "topic:versecountingresult",
+   "kind": "publishes",
+   "labels": [],
+   "evidence": [
+    "repos/srp/ScriptureRenderingPipelineWorker/ProgressReporting.cs:30",
+    "repos/srp/ScriptureRenderingPipelineWorker/ProgressReporting.cs:43"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:srp/RenderDoc",
+   "target": "renderer:USFMRenderer",
+   "kind": "calls",
+   "labels": [
+    "renders with"
+   ],
+   "evidence": [
+    "repos/srp/ScriptureRenderingPipeline/Rendering.cs:125"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:srp/RenderingTrigger",
+   "target": "blob:$web",
+   "kind": "calls",
+   "labels": [
+    "writes HTML, index.json, build_log.json"
+   ],
+   "evidence": [
+    "ScripturePipelineStorageOutputContainer=$web"
+   ],
+   "origin": "curated"
+  },
+  {
+   "source": "fn:srp/RenderingTrigger",
+   "target": "blob:template",
+   "kind": "calls",
+   "labels": [
+    "reads print.html"
+   ],
+   "evidence": [
+    "ScripturePipelineStorageTemplateContainer=template"
+   ],
+   "origin": "curated"
+  },
+  {
+   "source": "fn:srp/RenderingTrigger",
+   "target": "renderer:BibleRenderer",
+   "kind": "calls",
+   "labels": [
+    "renders with"
+   ],
+   "evidence": [
+    "repos/srp/ScriptureRenderingPipelineWorker/RenderingTrigger.cs:302"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:srp/RenderingTrigger",
+   "target": "renderer:CommentaryRenderer",
+   "kind": "calls",
+   "labels": [
+    "renders with"
+   ],
+   "evidence": [
+    "repos/srp/ScriptureRenderingPipelineWorker/RenderingTrigger.cs:322"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:srp/RenderingTrigger",
+   "target": "renderer:TranslationManualRenderer",
+   "kind": "calls",
+   "labels": [
+    "renders with"
+   ],
+   "evidence": [
+    "repos/srp/ScriptureRenderingPipelineWorker/RenderingTrigger.cs:318"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:srp/RenderingTrigger",
+   "target": "renderer:TranslationNotesRenderer",
+   "kind": "calls",
+   "labels": [
+    "renders with"
+   ],
+   "evidence": [
+    "repos/srp/ScriptureRenderingPipelineWorker/RenderingTrigger.cs:306"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:srp/RenderingTrigger",
+   "target": "renderer:TranslationQuestionsRenderer",
+   "kind": "calls",
+   "labels": [
+    "renders with"
+   ],
+   "evidence": [
+    "repos/srp/ScriptureRenderingPipelineWorker/RenderingTrigger.cs:310"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:srp/RenderingTrigger",
+   "target": "renderer:TranslationWordsRenderer",
+   "kind": "calls",
+   "labels": [
+    "renders with"
+   ],
+   "evidence": [
+    "repos/srp/ScriptureRenderingPipelineWorker/RenderingTrigger.cs:314"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:srp/RenderingTrigger",
+   "target": "svc:wacs",
+   "kind": "calls",
+   "labels": [
+    "downloads repo zip"
+   ],
+   "evidence": [
+    "Gitea__localhost__BaseUrl=http://wacs:3000 in compose/srp.yaml; credentials keyed by the html_url host"
+   ],
+   "origin": "curated"
+  },
+  {
+   "source": "fn:srp/RenderingTrigger",
+   "target": "topic:reporendered",
+   "kind": "publishes",
+   "labels": [],
+   "evidence": [
+    "repos/srp/ScriptureRenderingPipelineWorker/RenderingTrigger.cs:56"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:srp/RepoAnalysisTrigger",
+   "target": "topic:repoanalysisresult",
+   "kind": "publishes",
+   "labels": [],
+   "evidence": [
+    "repos/srp/ScriptureRenderingPipelineWorker/RepoAnalysisTrigger.cs:46"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "fn:srp/Webhook",
+   "target": "topic:wacsevent",
+   "kind": "publishes",
+   "labels": [],
+   "evidence": [
+    "repos/srp/ScriptureRenderingPipeline/Webhook.cs:112"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "make:build",
+   "target": "file:compose.yaml",
+   "kind": "runs",
+   "labels": [
+    "docker compose build"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "make:build",
+   "target": "make:prepare",
+   "kind": "runs",
+   "labels": [
+    "first"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "make:bump",
+   "target": "file:.gitmodules",
+   "kind": "runs",
+   "labels": [
+    "git submodule"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "make:down",
+   "target": "file:compose.yaml",
+   "kind": "runs",
+   "labels": [
+    "docker compose down"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "make:import",
+   "target": "script:tools/cli/fdb",
+   "kind": "runs",
+   "labels": [],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "make:init",
+   "target": "file:.gitmodules",
+   "kind": "runs",
+   "labels": [
+    "git submodule"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "make:logs",
+   "target": "file:compose.yaml",
+   "kind": "runs",
+   "labels": [
+    "docker compose logs"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "make:nuke",
+   "target": "file:compose.yaml",
+   "kind": "runs",
+   "labels": [
+    "docker compose down"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "make:ps",
+   "target": "file:compose.yaml",
+   "kind": "runs",
+   "labels": [
+    "docker compose ps"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "make:put",
+   "target": "script:tools/cli/fdb",
+   "kind": "runs",
+   "labels": [],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "make:repos",
+   "target": "script:tools/cli/fdb",
+   "kind": "runs",
+   "labels": [],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "make:reset",
+   "target": "make:nuke",
+   "kind": "runs",
+   "labels": [
+    "step 1"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "make:reset",
+   "target": "make:seed",
+   "kind": "runs",
+   "labels": [
+    "step 3"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "make:reset",
+   "target": "make:smoke",
+   "kind": "runs",
+   "labels": [
+    "step 4"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "make:reset",
+   "target": "make:up",
+   "kind": "runs",
+   "labels": [
+    "step 2"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "make:seed",
+   "target": "script:seed/seed.sh",
+   "kind": "runs",
+   "labels": [],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "make:smoke",
+   "target": "script:scripts/smoke.sh",
+   "kind": "runs",
+   "labels": [],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "make:status",
+   "target": "script:tools/cli/fdb",
+   "kind": "runs",
+   "labels": [],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "make:test-tools",
+   "target": "script:tools/test.sh",
+   "kind": "runs",
+   "labels": [],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "make:up",
+   "target": "file:compose.yaml",
+   "kind": "runs",
+   "labels": [
+    "docker compose up"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "make:up",
+   "target": "make:prepare",
+   "kind": "runs",
+   "labels": [
+    "first"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "py:fdb.cli",
+   "target": "py:fdb.clients",
+   "kind": "imports",
+   "labels": [
+    "HTTPError"
+   ],
+   "evidence": [
+    "tools/fdb/cli.py:10"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "py:fdb.cli",
+   "target": "py:fdb.config",
+   "kind": "imports",
+   "labels": [
+    "Config, NotLocalError"
+   ],
+   "evidence": [
+    "tools/fdb/cli.py:11"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "py:fdb.cli",
+   "target": "py:fdb.core",
+   "kind": "imports",
+   "labels": [],
+   "evidence": [
+    "tools/fdb/cli.py:9"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "py:fdb.clients",
+   "target": "blob:$web",
+   "kind": "calls",
+   "labels": [
+    "reads build_log.json"
+   ],
+   "evidence": [
+    "tools/fdb/clients.py: Blob.get_json, used by core._status_once for the render stage"
+   ],
+   "origin": "curated"
+  },
+  {
+   "source": "py:fdb.clients",
+   "target": "svc:lapi-hasura",
+   "kind": "calls",
+   "labels": [
+    "GraphQL rendered_content"
+   ],
+   "evidence": [
+    "tools/fdb/clients.py: Hasura.query, used by core._status_once for the languageapi stage"
+   ],
+   "origin": "curated"
+  },
+  {
+   "source": "py:fdb.clients",
+   "target": "svc:wacs",
+   "kind": "calls",
+   "labels": [
+    "Gitea REST + git push"
+   ],
+   "evidence": [
+    "tools/fdb/clients.py: Gitea and git(); pushes are refused unless the host is local (config.assert_local_wacs)"
+   ],
+   "origin": "curated"
+  },
+  {
+   "source": "py:fdb.core",
+   "target": "py:fdb.clients",
+   "kind": "imports",
+   "labels": [
+    "Blob, Gitea, Hasura, basic_auth, git"
+   ],
+   "evidence": [
+    "tools/fdb/core.py:10"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "py:fdb.core",
+   "target": "py:fdb.config",
+   "kind": "imports",
+   "labels": [
+    "Config, assert_local_wacs"
+   ],
+   "evidence": [
+    "tools/fdb/core.py:11"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "py:fdb.server",
+   "target": "py:fdb.clients",
+   "kind": "imports",
+   "labels": [
+    "HTTPError"
+   ],
+   "evidence": [
+    "tools/fdb/server.py:20"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "py:fdb.server",
+   "target": "py:fdb.config",
+   "kind": "imports",
+   "labels": [
+    "Config, NotLocalError"
+   ],
+   "evidence": [
+    "tools/fdb/server.py:21"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "py:fdb.server",
+   "target": "py:fdb.core",
+   "kind": "imports",
+   "labels": [],
+   "evidence": [
+    "tools/fdb/server.py:19"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "rest:hasura/consolidated-repos",
+   "target": "table:vw_consolidated_repos",
+   "kind": "reads_writes",
+   "labels": [
+    "reads"
+   ],
+   "evidence": [
+    "repos/languageapi/hasura/metadata/rest_endpoints.yaml"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "rest:hasura/langnames",
+   "target": "table:vw_langnames",
+   "kind": "reads_writes",
+   "labels": [
+    "reads"
+   ],
+   "evidence": [
+    "repos/languageapi/hasura/metadata/rest_endpoints.yaml"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "route:lapi/content",
+   "target": "table:content",
+   "kind": "reads_writes",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/routes/content.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "route:lapi/content",
+   "target": "table:git_repo",
+   "kind": "reads_writes",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/routes/content.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "route:lapi/content",
+   "target": "table:wa_content_metadata",
+   "kind": "reads_writes",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/routes/content.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "route:lapi/country",
+   "target": "table:country",
+   "kind": "reads_writes",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/routes/country.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "route:lapi/country",
+   "target": "table:world_region",
+   "kind": "reads_writes",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/routes/country.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "route:lapi/git",
+   "target": "table:git_repo",
+   "kind": "reads_writes",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/routes/git.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "route:lapi/language",
+   "target": "table:language",
+   "kind": "reads_writes",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/routes/language.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "route:lapi/language",
+   "target": "table:language_alternate_name",
+   "kind": "reads_writes",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/routes/language.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "route:lapi/language",
+   "target": "table:wa_language_metadata",
+   "kind": "reads_writes",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/routes/language.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "route:lapi/region",
+   "target": "table:world_region",
+   "kind": "reads_writes",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/routes/region.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "route:lapi/rendering",
+   "target": "table:nonscriptural_rendering_metadata",
+   "kind": "reads_writes",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/routes/rendering.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "route:lapi/rendering",
+   "target": "table:rendered_content",
+   "kind": "reads_writes",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/routes/rendering.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "route:lapi/rendering",
+   "target": "table:scriptural_rendering_metadata",
+   "kind": "reads_writes",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/routes/rendering.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "script:scripts/lib.sh",
+   "target": "svc:wacs",
+   "kind": "calls",
+   "labels": [],
+   "evidence": [
+    "scripts/lib.sh:29",
+    "scripts/lib.sh:44"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "script:scripts/smoke.sh",
+   "target": "script:scripts/lib.sh",
+   "kind": "calls",
+   "labels": [
+    "source"
+   ],
+   "evidence": [
+    "scripts/smoke.sh:10"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "script:scripts/smoke.sh",
+   "target": "svc:azurite",
+   "kind": "calls",
+   "labels": [],
+   "evidence": [
+    "scripts/smoke.sh:57"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "script:scripts/smoke.sh",
+   "target": "svc:lapi-controller",
+   "kind": "calls",
+   "labels": [],
+   "evidence": [
+    "scripts/smoke.sh:39"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "script:scripts/smoke.sh",
+   "target": "svc:lapi-hasura",
+   "kind": "calls",
+   "labels": [],
+   "evidence": [
+    "scripts/smoke.sh:34"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "script:scripts/smoke.sh",
+   "target": "svc:servicebus",
+   "kind": "calls",
+   "labels": [],
+   "evidence": [
+    "scripts/smoke.sh:41"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "script:scripts/smoke.sh",
+   "target": "svc:srp-webhook",
+   "kind": "calls",
+   "labels": [],
+   "evidence": [
+    "scripts/smoke.sh:40"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "script:scripts/smoke.sh",
+   "target": "svc:wacs",
+   "kind": "calls",
+   "labels": [],
+   "evidence": [
+    "scripts/smoke.sh:37",
+    "scripts/smoke.sh:48"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "script:seed/seed.sh",
+   "target": "blob:$web",
+   "kind": "calls",
+   "labels": [
+    "creates container"
+   ],
+   "evidence": [
+    "seed/seed.sh"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "script:seed/seed.sh",
+   "target": "blob:template",
+   "kind": "calls",
+   "labels": [
+    "creates container"
+   ],
+   "evidence": [
+    "seed/seed.sh"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "script:seed/seed.sh",
+   "target": "blob:versecounts",
+   "kind": "calls",
+   "labels": [
+    "creates container"
+   ],
+   "evidence": [
+    "seed/seed.sh"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "script:seed/seed.sh",
+   "target": "file:seed/fixtures",
+   "kind": "calls",
+   "labels": [
+    "reads"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "script:seed/seed.sh",
+   "target": "file:seed/languageapi",
+   "kind": "calls",
+   "labels": [
+    "reads"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "script:seed/seed.sh",
+   "target": "file:seed/sql/wacs-token-trigger.sql",
+   "kind": "calls",
+   "labels": [
+    "applies to wacs-db"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "script:seed/seed.sh",
+   "target": "file:seed/templates",
+   "kind": "calls",
+   "labels": [
+    "reads"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "script:seed/seed.sh",
+   "target": "script:scripts/lib.sh",
+   "kind": "calls",
+   "labels": [
+    "source"
+   ],
+   "evidence": [
+    "seed/seed.sh:11"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "script:seed/seed.sh",
+   "target": "svc:lapi-controller",
+   "kind": "calls",
+   "labels": [],
+   "evidence": [
+    "seed/seed.sh:44"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "script:seed/seed.sh",
+   "target": "svc:tools",
+   "kind": "calls",
+   "labels": [
+    "docker compose exec/run"
+   ],
+   "evidence": [
+    "seed/seed.sh:34"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "script:seed/seed.sh",
+   "target": "svc:wacs",
+   "kind": "calls",
+   "labels": [
+    "docker compose exec/run"
+   ],
+   "evidence": [
+    "seed/seed.sh:14",
+    "seed/seed.sh:59",
+    "seed/seed.sh:23"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "script:seed/seed.sh",
+   "target": "svc:wacs-db",
+   "kind": "calls",
+   "labels": [
+    "docker compose exec/run"
+   ],
+   "evidence": [
+    "seed/seed.sh:20"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "script:tools/cli/fdb",
+   "target": "py:fdb.cli",
+   "kind": "calls",
+   "labels": [
+    "main()"
+   ],
+   "evidence": [
+    "tools/cli/fdb"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "script:tools/test.sh",
+   "target": "script:scripts/lib.sh",
+   "kind": "calls",
+   "labels": [
+    "source"
+   ],
+   "evidence": [
+    "tools/test.sh:11"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "script:tools/test.sh",
+   "target": "script:tools/cli/fdb",
+   "kind": "calls",
+   "labels": [],
+   "evidence": [
+    "tools/test.sh:34"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "script:tools/test.sh",
+   "target": "svc:azurite",
+   "kind": "calls",
+   "labels": [],
+   "evidence": [
+    "tools/test.sh:47"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "script:tools/test.sh",
+   "target": "svc:fdb-api",
+   "kind": "calls",
+   "labels": [],
+   "evidence": [
+    "tools/test.sh:51"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "sub:audiobiel/languageapi",
+   "target": "fn:lapi/waAudioRenderings",
+   "kind": "triggers",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/functions/audio-renderings-bus.ts:240"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "sub:mergedresult/NotificationHandler",
+   "target": "svc:VerseReportingProcessor",
+   "kind": "triggers",
+   "labels": [],
+   "evidence": [
+    "repos/srp/VerseReportingProcessor/MergeCompletedNotificationService.cs:22"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "sub:mergerequest/MergeRequest",
+   "target": "fn:srp/MergeTrigger",
+   "kind": "triggers",
+   "labels": [],
+   "evidence": [
+    "repos/srp/ScriptureRenderingPipelineWorker/MergeHandler.cs:46"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "sub:repoanalysisresult/WebhookDispatcher",
+   "target": "fn:srp/WebhookDispatcherRepoAnalysisResultTrigger",
+   "kind": "triggers",
+   "labels": [],
+   "evidence": [
+    "repos/srp/ScriptureRenderingPipelineWorker/WebhookDispatcherTrigger.cs:69"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "sub:reporendered/reporendered-languageapi",
+   "target": "fn:lapi/waLangApiRenderings",
+   "kind": "triggers",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/functions/renderings-bus.ts:266"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "sub:versecountingresult/InternalProcessor",
+   "target": "svc:VerseReportingProcessor",
+   "kind": "triggers",
+   "labels": [],
+   "evidence": [
+    "repos/srp/VerseReportingProcessor/VerseCounterService.cs:28"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "sub:wacsevent/InternalProcessor",
+   "target": "svc:VerseReportingProcessor",
+   "kind": "triggers",
+   "labels": [],
+   "evidence": [
+    "repos/srp/VerseReportingProcessor/VerseCounterService.cs:28"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "sub:wacsevent/RenderingWebhook",
+   "target": "fn:srp/RenderingTrigger",
+   "kind": "triggers",
+   "labels": [],
+   "evidence": [
+    "repos/srp/ScriptureRenderingPipelineWorker/RenderingTrigger.cs:44"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "sub:wacsevent/RepoAnalysis",
+   "target": "fn:srp/RepoAnalysisTrigger",
+   "kind": "triggers",
+   "labels": [],
+   "evidence": [
+    "repos/srp/ScriptureRenderingPipelineWorker/RepoAnalysisTrigger.cs:31"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "sub:wacsevent/VerseCounting",
+   "target": "fn:srp/ProgressReporting",
+   "kind": "triggers",
+   "labels": [],
+   "evidence": [
+    "repos/srp/ScriptureRenderingPipelineWorker/ProgressReporting.cs:29"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "sub:wacsevent/WebhookDispatcher",
+   "target": "fn:srp/WebhookDispatcherWACSMessageTrigger",
+   "kind": "triggers",
+   "labels": [],
+   "evidence": [
+    "repos/srp/ScriptureRenderingPipelineWorker/WebhookDispatcherTrigger.cs:27"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "sub:wacsevent/languageapi",
+   "target": "fn:lapi/waLangApiGitTopics",
+   "kind": "triggers",
+   "labels": [],
+   "evidence": [
+    "repos/languageapi/controller/src/functions/bus-wacsevent-gitTopics.ts:128"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:azurite",
+   "target": "vol:azurite_data",
+   "kind": "stores",
+   "labels": [
+    "/data"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:fdb-api",
+   "target": "blob:$web",
+   "kind": "uses",
+   "labels": [],
+   "evidence": [
+    "FDB_BLOB_URL=http://azurite:10000/devstoreaccount1/$web"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:fdb-api",
+   "target": "ep:fdb/GET /healthz",
+   "kind": "exposes",
+   "labels": [
+    "HTTP"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:fdb-api",
+   "target": "ep:fdb/GET /repos",
+   "kind": "exposes",
+   "labels": [
+    "HTTP"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:fdb-api",
+   "target": "ep:fdb/GET /repos/{owner}/{repo}/pipeline",
+   "kind": "exposes",
+   "labels": [
+    "HTTP"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:fdb-api",
+   "target": "ep:fdb/POST /import",
+   "kind": "exposes",
+   "labels": [
+    "HTTP"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:fdb-api",
+   "target": "ep:fdb/PUT /repos/{owner}/{repo}/contents/{path}",
+   "kind": "exposes",
+   "labels": [
+    "HTTP"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:fdb-api",
+   "target": "file:tools",
+   "kind": "mounts",
+   "labels": [
+    "/app/tools"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:fdb-api",
+   "target": "file:tools/http/Dockerfile",
+   "kind": "built_by",
+   "labels": [],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:fdb-api",
+   "target": "py:fdb.server",
+   "kind": "calls",
+   "labels": [
+    "python -m fdb.server"
+   ],
+   "evidence": [
+    "tools/http/Dockerfile"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:fdb-api",
+   "target": "svc:azurite",
+   "kind": "depends_on",
+   "labels": [
+    "healthy"
+   ],
+   "evidence": [
+    "compose/tools.yaml: depends_on"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:fdb-api",
+   "target": "svc:azurite",
+   "kind": "uses",
+   "labels": [],
+   "evidence": [
+    "FDB_BLOB_URL=http://azurite:10000/devstoreaccount1/$web"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:fdb-api",
+   "target": "svc:lapi-hasura",
+   "kind": "depends_on",
+   "labels": [
+    "healthy"
+   ],
+   "evidence": [
+    "compose/tools.yaml: depends_on"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:fdb-api",
+   "target": "svc:lapi-hasura",
+   "kind": "uses",
+   "labels": [],
+   "evidence": [
+    "FDB_HASURA_URL=http://lapi-hasura:8080"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:fdb-api",
+   "target": "svc:wacs",
+   "kind": "depends_on",
+   "labels": [
+    "healthy"
+   ],
+   "evidence": [
+    "compose/tools.yaml: depends_on"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:fdb-api",
+   "target": "svc:wacs",
+   "kind": "uses",
+   "labels": [],
+   "evidence": [
+    "FDB_WACS_URL=http://wacs:3000"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:fdb-api",
+   "target": "vol:fdb_imports",
+   "kind": "stores",
+   "labels": [
+    "/data/imports"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-controller",
+   "target": "file:docker/languageapi/controller.Dockerfile",
+   "kind": "built_by",
+   "labels": [],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-controller",
+   "target": "svc:azurite",
+   "kind": "depends_on",
+   "labels": [
+    "healthy"
+   ],
+   "evidence": [
+    "compose/languageapi.yaml: depends_on"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-controller",
+   "target": "svc:azurite",
+   "kind": "uses",
+   "labels": [],
+   "evidence": [
+    "AzureWebJobsStorage=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-controller",
+   "target": "svc:lapi-migrate",
+   "kind": "depends_on",
+   "labels": [
+    "completed successfully"
+   ],
+   "evidence": [
+    "compose/languageapi.yaml: depends_on"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-controller",
+   "target": "svc:lapi-postgres",
+   "kind": "uses",
+   "labels": [],
+   "evidence": [
+    "DATABASE_URL=postgres://docker:docker@lapi-postgres:5432/docker"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-controller",
+   "target": "svc:sb-health",
+   "kind": "depends_on",
+   "labels": [
+    "healthy"
+   ],
+   "evidence": [
+    "compose/languageapi.yaml: depends_on"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-controller",
+   "target": "svc:servicebus",
+   "kind": "uses",
+   "labels": [],
+   "evidence": [
+    "BUS_CONN=Endpoint=sb://servicebus;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmula"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-controller",
+   "target": "svc:wacs",
+   "kind": "uses",
+   "labels": [],
+   "evidence": [
+    "WACS_API_URL=http://wacs:3000/api/v1"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-hasura",
+   "target": "file:repos/languageapi/hasura/metadata",
+   "kind": "mounts",
+   "labels": [
+    "/hasura-metadata"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-hasura",
+   "target": "rest:hasura/consolidated-repos",
+   "kind": "exposes",
+   "labels": [
+    "REST"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-hasura",
+   "target": "rest:hasura/langnames",
+   "kind": "exposes",
+   "labels": [
+    "REST"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-hasura",
+   "target": "svc:lapi-migrate",
+   "kind": "depends_on",
+   "labels": [
+    "completed successfully"
+   ],
+   "evidence": [
+    "compose/languageapi.yaml: depends_on"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-hasura",
+   "target": "svc:lapi-postgres",
+   "kind": "uses",
+   "labels": [],
+   "evidence": [
+    "HASURA_GRAPHQL_METADATA_DATABASE_URL=postgres://docker:docker@lapi-postgres:5432/docker",
+    "PG_DATABASE_URL=postgres://docker:docker@lapi-postgres:5432/docker"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-hasura",
+   "target": "table:content",
+   "kind": "exposes",
+   "labels": [
+    "GraphQL"
+   ],
+   "evidence": [
+    "repos/languageapi/hasura/metadata/databases/languageapi/tables/public_content.yaml"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-hasura",
+   "target": "table:country",
+   "kind": "exposes",
+   "labels": [
+    "GraphQL"
+   ],
+   "evidence": [
+    "repos/languageapi/hasura/metadata/databases/languageapi/tables/public_country.yaml"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-hasura",
+   "target": "table:country_to_language",
+   "kind": "exposes",
+   "labels": [
+    "GraphQL"
+   ],
+   "evidence": [
+    "repos/languageapi/hasura/metadata/databases/languageapi/tables/public_country_to_language.yaml"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-hasura",
+   "target": "table:gateway_language_to_dependent_language",
+   "kind": "exposes",
+   "labels": [
+    "GraphQL"
+   ],
+   "evidence": [
+    "repos/languageapi/hasura/metadata/databases/languageapi/tables/public_gateway_language_to_dependent_language.yaml"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-hasura",
+   "target": "table:git_repo",
+   "kind": "exposes",
+   "labels": [
+    "GraphQL"
+   ],
+   "evidence": [
+    "repos/languageapi/hasura/metadata/databases/languageapi/tables/public_git_repo.yaml"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-hasura",
+   "target": "table:git_topic",
+   "kind": "exposes",
+   "labels": [
+    "GraphQL"
+   ],
+   "evidence": [
+    "repos/languageapi/hasura/metadata/databases/languageapi/tables/public_git_topic.yaml"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-hasura",
+   "target": "table:language",
+   "kind": "exposes",
+   "labels": [
+    "GraphQL"
+   ],
+   "evidence": [
+    "repos/languageapi/hasura/metadata/databases/languageapi/tables/public_language.yaml"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-hasura",
+   "target": "table:language_alternate_name",
+   "kind": "exposes",
+   "labels": [
+    "GraphQL"
+   ],
+   "evidence": [
+    "repos/languageapi/hasura/metadata/databases/languageapi/tables/public_language_alternate_name.yaml"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-hasura",
+   "target": "table:localization",
+   "kind": "exposes",
+   "labels": [
+    "GraphQL"
+   ],
+   "evidence": [
+    "repos/languageapi/hasura/metadata/databases/languageapi/tables/public_localization.yaml"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-hasura",
+   "target": "table:nonscriptural_rendering_metadata",
+   "kind": "exposes",
+   "labels": [
+    "GraphQL"
+   ],
+   "evidence": [
+    "repos/languageapi/hasura/metadata/databases/languageapi/tables/public_nonscriptural_rendering_metadata.yaml"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-hasura",
+   "target": "table:rendered_content",
+   "kind": "exposes",
+   "labels": [
+    "GraphQL"
+   ],
+   "evidence": [
+    "repos/languageapi/hasura/metadata/databases/languageapi/tables/public_rendered_content.yaml"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-hasura",
+   "target": "table:repo_topic",
+   "kind": "exposes",
+   "labels": [
+    "GraphQL"
+   ],
+   "evidence": [
+    "repos/languageapi/hasura/metadata/databases/languageapi/tables/public_repo_topic.yaml"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-hasura",
+   "target": "table:scriptural_rendering_metadata",
+   "kind": "exposes",
+   "labels": [
+    "GraphQL"
+   ],
+   "evidence": [
+    "repos/languageapi/hasura/metadata/databases/languageapi/tables/public_scriptural_rendering_metadata.yaml"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-hasura",
+   "target": "table:source_zips",
+   "kind": "exposes",
+   "labels": [
+    "GraphQL"
+   ],
+   "evidence": [
+    "repos/languageapi/hasura/metadata/databases/languageapi/tables/public_source_zips.yaml"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-hasura",
+   "target": "table:vw_consolidated_repos",
+   "kind": "exposes",
+   "labels": [
+    "GraphQL"
+   ],
+   "evidence": [
+    "repos/languageapi/hasura/metadata/databases/languageapi/tables/public_vw_consolidated_repos.yaml"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-hasura",
+   "target": "table:vw_langnames",
+   "kind": "exposes",
+   "labels": [
+    "GraphQL"
+   ],
+   "evidence": [
+    "repos/languageapi/hasura/metadata/databases/languageapi/tables/public_vw_langnames.yaml"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-hasura",
+   "target": "table:wa_content_metadata",
+   "kind": "exposes",
+   "labels": [
+    "GraphQL"
+   ],
+   "evidence": [
+    "repos/languageapi/hasura/metadata/databases/languageapi/tables/public_wa_content_metadata.yaml"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-hasura",
+   "target": "table:wa_language_metadata",
+   "kind": "exposes",
+   "labels": [
+    "GraphQL"
+   ],
+   "evidence": [
+    "repos/languageapi/hasura/metadata/databases/languageapi/tables/public_wa_language_metadata.yaml"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-hasura",
+   "target": "table:world_region",
+   "kind": "exposes",
+   "labels": [
+    "GraphQL"
+   ],
+   "evidence": [
+    "repos/languageapi/hasura/metadata/databases/languageapi/tables/public_world_region.yaml"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-migrate",
+   "target": "file:docker/languageapi/controller.Dockerfile",
+   "kind": "built_by",
+   "labels": [],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-migrate",
+   "target": "svc:lapi-postgres",
+   "kind": "depends_on",
+   "labels": [
+    "healthy"
+   ],
+   "evidence": [
+    "compose/languageapi.yaml: depends_on"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-migrate",
+   "target": "svc:lapi-postgres",
+   "kind": "uses",
+   "labels": [],
+   "evidence": [
+    "DATABASE_URL=postgres://docker:docker@lapi-postgres:5432/docker"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:lapi-migrate",
+   "target": "table:content",
+   "kind": "calls",
+   "labels": [
+    "applies drizzle/*.sql"
+   ],
+   "evidence": [
+    "docker/languageapi/controller.Dockerfile target migrate; every table is created this way"
+   ],
+   "origin": "curated"
+  },
+  {
+   "source": "svc:lapi-postgres",
+   "target": "vol:lapi_pgdata",
+   "kind": "stores",
+   "labels": [
+    "/var/lib/postgresql/data"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:sb-health",
+   "target": "svc:servicebus",
+   "kind": "depends_on",
+   "labels": [
+    "started"
+   ],
+   "evidence": [
+    "compose/infra.yaml: depends_on"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:servicebus",
+   "target": "file:config/servicebus/Config.json",
+   "kind": "mounts",
+   "labels": [
+    "/ServiceBus_Emulator/ConfigFiles/Config.json"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:servicebus",
+   "target": "svc:sb-sql",
+   "kind": "depends_on",
+   "labels": [
+    "healthy"
+   ],
+   "evidence": [
+    "compose/infra.yaml: depends_on"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:srp-webhook",
+   "target": "file:docker/srp/functions.Dockerfile",
+   "kind": "built_by",
+   "labels": [
+    "ScriptureRenderingPipeline"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:srp-webhook",
+   "target": "svc:azurite",
+   "kind": "depends_on",
+   "labels": [
+    "healthy"
+   ],
+   "evidence": [
+    "compose/srp.yaml: depends_on"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:srp-webhook",
+   "target": "svc:azurite",
+   "kind": "uses",
+   "labels": [],
+   "evidence": [
+    "AzureWebJobsStorage=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq",
+    "WebhookStorageConnectionString=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:srp-webhook",
+   "target": "svc:sb-health",
+   "kind": "depends_on",
+   "labels": [
+    "healthy"
+   ],
+   "evidence": [
+    "compose/srp.yaml: depends_on"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:srp-webhook",
+   "target": "svc:servicebus",
+   "kind": "uses",
+   "labels": [],
+   "evidence": [
+    "ServiceBusConnectionString=Endpoint=sb://servicebus;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmula"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:srp-worker",
+   "target": "blob:$web",
+   "kind": "uses",
+   "labels": [],
+   "evidence": [
+    "ScripturePipelineStorageOutputContainer=$web",
+    "ScriptureRenderingPipelineBaseUrl=http://localhost:10000/devstoreaccount1/$web/"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:srp-worker",
+   "target": "blob:template",
+   "kind": "uses",
+   "labels": [],
+   "evidence": [
+    "ScripturePipelineStorageTemplateContainer=template"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:srp-worker",
+   "target": "file:docker/srp/functions.Dockerfile",
+   "kind": "built_by",
+   "labels": [
+    "ScriptureRenderingPipelineWorker"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:srp-worker",
+   "target": "svc:azurite",
+   "kind": "depends_on",
+   "labels": [
+    "healthy"
+   ],
+   "evidence": [
+    "compose/srp.yaml: depends_on"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:srp-worker",
+   "target": "svc:azurite",
+   "kind": "uses",
+   "labels": [],
+   "evidence": [
+    "AzureWebJobsStorage=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq",
+    "ScripturePipelineStorageConnectionString=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq",
+    "WebhookStorageConnectionString=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:srp-worker",
+   "target": "svc:sb-health",
+   "kind": "depends_on",
+   "labels": [
+    "healthy"
+   ],
+   "evidence": [
+    "compose/srp.yaml: depends_on"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:srp-worker",
+   "target": "svc:servicebus",
+   "kind": "uses",
+   "labels": [],
+   "evidence": [
+    "ServiceBusConnectionString=Endpoint=sb://servicebus;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmula"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:srp-worker",
+   "target": "svc:wacs",
+   "kind": "uses",
+   "labels": [],
+   "evidence": [
+    "GiteaBaseAddress=http://wacs:3000",
+    "Gitea__localhost__BaseUrl=http://wacs:3000"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:tools",
+   "target": "file:seed",
+   "kind": "mounts",
+   "labels": [
+    "/seed"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:tools",
+   "target": "svc:azurite",
+   "kind": "depends_on",
+   "labels": [
+    "healthy"
+   ],
+   "evidence": [
+    "compose/infra.yaml: depends_on"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:tools",
+   "target": "svc:azurite",
+   "kind": "uses",
+   "labels": [],
+   "evidence": [
+    "AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:wacs",
+   "target": "blob:$web",
+   "kind": "uses",
+   "labels": [],
+   "evidence": [
+    "READER_BASE_LINK=http://localhost:10000/devstoreaccount1/$web/u/"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:wacs",
+   "target": "file:config/wacs.env",
+   "kind": "mounts",
+   "labels": [
+    "env_file"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:wacs",
+   "target": "file:repos/wacs/.env",
+   "kind": "mounts",
+   "labels": [
+    "env_file"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:wacs",
+   "target": "file:repos/wacs/wacs-gitea/Dockerfile",
+   "kind": "built_by",
+   "labels": [],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:wacs",
+   "target": "fn:srp/Webhook",
+   "kind": "calls",
+   "labels": [
+    "system webhook (push, create, repository)"
+   ],
+   "evidence": [
+    "seed/seed.sh registers a Gitea system hook to SRP_HOOK_URL=http://srp-webhook/webhook (scripts/lib.sh)"
+   ],
+   "origin": "curated"
+  },
+  {
+   "source": "svc:wacs",
+   "target": "svc:wacs-db",
+   "kind": "depends_on",
+   "labels": [
+    "healthy"
+   ],
+   "evidence": [
+    "compose/wacs.yaml: depends_on"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:wacs",
+   "target": "svc:wacs-redis",
+   "kind": "depends_on",
+   "labels": [
+    "healthy"
+   ],
+   "evidence": [
+    "compose/wacs.yaml: depends_on"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:wacs",
+   "target": "vol:wacs_config",
+   "kind": "stores",
+   "labels": [
+    "/etc/gitea"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:wacs",
+   "target": "vol:wacs_data",
+   "kind": "stores",
+   "labels": [
+    "/var/lib/gitea"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "svc:wacs-db",
+   "target": "vol:wacs_db_data",
+   "kind": "stores",
+   "labels": [
+    "/var/lib/mysql"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "table:content",
+   "target": "table:language",
+   "kind": "fk",
+   "labels": [
+    "foreign key"
+   ],
+   "evidence": [
+    "repos/languageapi/controller/src/db/schema/schema.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "table:country",
+   "target": "table:world_region",
+   "kind": "fk",
+   "labels": [
+    "foreign key"
+   ],
+   "evidence": [
+    "repos/languageapi/controller/src/db/schema/schema.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "table:country_to_language",
+   "target": "table:country",
+   "kind": "fk",
+   "labels": [
+    "foreign key"
+   ],
+   "evidence": [
+    "repos/languageapi/controller/src/db/schema/schema.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "table:country_to_language",
+   "target": "table:language",
+   "kind": "fk",
+   "labels": [
+    "foreign key"
+   ],
+   "evidence": [
+    "repos/languageapi/controller/src/db/schema/schema.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "table:gateway_language_to_dependent_language",
+   "target": "table:language",
+   "kind": "fk",
+   "labels": [
+    "foreign key"
+   ],
+   "evidence": [
+    "repos/languageapi/controller/src/db/schema/schema.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "table:git_repo",
+   "target": "table:content",
+   "kind": "fk",
+   "labels": [
+    "foreign key"
+   ],
+   "evidence": [
+    "repos/languageapi/controller/src/db/schema/schema.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "table:language",
+   "target": "table:country",
+   "kind": "fk",
+   "labels": [
+    "foreign key"
+   ],
+   "evidence": [
+    "repos/languageapi/controller/src/db/schema/schema.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "table:language_alternate_name",
+   "target": "table:language",
+   "kind": "fk",
+   "labels": [
+    "foreign key"
+   ],
+   "evidence": [
+    "repos/languageapi/controller/src/db/schema/schema.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "table:localization",
+   "target": "table:language",
+   "kind": "fk",
+   "labels": [
+    "foreign key"
+   ],
+   "evidence": [
+    "repos/languageapi/controller/src/db/schema/schema.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "table:rendered_content",
+   "target": "table:content",
+   "kind": "fk",
+   "labels": [
+    "foreign key"
+   ],
+   "evidence": [
+    "repos/languageapi/controller/src/db/schema/schema.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "table:repo_topic",
+   "target": "table:git_repo",
+   "kind": "fk",
+   "labels": [
+    "foreign key"
+   ],
+   "evidence": [
+    "repos/languageapi/controller/src/db/schema/schema.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "table:repo_topic",
+   "target": "table:git_topic",
+   "kind": "fk",
+   "labels": [
+    "foreign key"
+   ],
+   "evidence": [
+    "repos/languageapi/controller/src/db/schema/schema.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "table:wa_content_metadata",
+   "target": "table:content",
+   "kind": "fk",
+   "labels": [
+    "foreign key"
+   ],
+   "evidence": [
+    "repos/languageapi/controller/src/db/schema/schema.ts"
+   ],
+   "origin": "extracted"
+  },
+  {
+   "source": "topic:audiobiel",
+   "target": "sub:audiobiel/languageapi",
+   "kind": "delivers",
+   "labels": [],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "topic:mergedresult",
+   "target": "sub:mergedresult/NotificationHandler",
+   "kind": "delivers",
+   "labels": [],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "topic:mergerequest",
+   "target": "sub:mergerequest/MergeRequest",
+   "kind": "delivers",
+   "labels": [],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "topic:repoanalysisresult",
+   "target": "sub:repoanalysisresult/WebhookDispatcher",
+   "kind": "delivers",
+   "labels": [],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "topic:reporendered",
+   "target": "sub:reporendered/reporendered-languageapi",
+   "kind": "delivers",
+   "labels": [],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "topic:versecountingresult",
+   "target": "sub:versecountingresult/InternalProcessor",
+   "kind": "delivers",
+   "labels": [
+    "user.success=true"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "topic:wacsevent",
+   "target": "sub:wacsevent/InternalProcessor",
+   "kind": "delivers",
+   "labels": [
+    "Action='deleted' and EventType='repository'"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "topic:wacsevent",
+   "target": "sub:wacsevent/RenderingWebhook",
+   "kind": "delivers",
+   "labels": [
+    "eventType='push' or eventType='fork' or eventType='create'"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "topic:wacsevent",
+   "target": "sub:wacsevent/RepoAnalysis",
+   "kind": "delivers",
+   "labels": [],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "topic:wacsevent",
+   "target": "sub:wacsevent/VerseCounting",
+   "kind": "delivers",
+   "labels": [
+    "eventType='push' or eventType='fork' or eventType='create'"
+   ],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "topic:wacsevent",
+   "target": "sub:wacsevent/WebhookDispatcher",
+   "kind": "delivers",
+   "labels": [],
+   "evidence": [],
+   "origin": "extracted"
+  },
+  {
+   "source": "topic:wacsevent",
+   "target": "sub:wacsevent/languageapi",
+   "kind": "delivers",
+   "labels": [],
+   "evidence": [],
+   "origin": "extracted"
+  }
+ ],
+ "tours": [
+  {
+   "id": "commit",
+   "title": "A commit's journey",
+   "intro": "What happens between `git push` and the change showing up in the public API. This is the flow the whole repo exists to reproduce, and what `make smoke` and `fdb status` check.",
+   "steps": [
+    {
+     "title": "A translator pushes to WACS.",
+     "text": "WACS is Gitea. Locally the push comes from you, `make smoke`, or `fdb put`, which all commit through the Gitea API. That counts as a push like any other.",
+     "nodes": [
+      "svc:wacs",
+      "script:scripts/smoke.sh",
+      "py:fdb.core"
+     ]
+    },
+    {
+     "title": "Gitea calls SRP's webhook.",
+     "text": "`make seed` registers a system webhook, so every repo's push, create and repository events go to http://srp-webhook/webhook. The webhook function checks the repo's host and builds a WACSMessage. A brand-new repo fires both `create` and `push`, so it renders twice.",
+     "nodes": [
+      "svc:wacs",
+      "fn:srp/Webhook",
+      "svc:srp-webhook"
+     ],
+     "focus": "fn:srp/Webhook"
+    },
+    {
+     "title": "One message, many subscribers.",
+     "text": "The message goes to the WACSEvent topic. Service Bus copies it to every subscription whose filter matches: rendering and verse counting only take push/fork/create, while analysis, the webhook dispatcher and languageapi take everything. The routing is all in config/servicebus/Config.json.",
+     "nodes": [
+      "fn:srp/Webhook",
+      "topic:wacsevent",
+      "sub:wacsevent/RenderingWebhook",
+      "sub:wacsevent/VerseCounting",
+      "sub:wacsevent/RepoAnalysis",
+      "sub:wacsevent/WebhookDispatcher",
+      "sub:wacsevent/languageapi",
+      "sub:wacsevent/InternalProcessor"
+     ],
+     "focus": "topic:wacsevent"
+    },
+    {
+     "title": "The worker renders.",
+     "text": "RenderingTrigger downloads the repo zip from WACS, picks a renderer from the manifest's resource type (Bible, notes, words, questions...), and writes the pages, index.json and build_log.json to $web/u/<owner>/<repo>/.",
+     "nodes": [
+      "sub:wacsevent/RenderingWebhook",
+      "fn:srp/RenderingTrigger",
+      "svc:wacs",
+      "renderer:BibleRenderer",
+      "blob:$web",
+      "blob:template"
+     ],
+     "focus": "fn:srp/RenderingTrigger"
+    },
+    {
+     "title": "SRP announces RepoRendered.",
+     "text": "Win or lose, the worker publishes a RenderingResultMessage with a Success property. Anyone can subscribe; locally the only subscriber is languageapi.",
+     "nodes": [
+      "fn:srp/RenderingTrigger",
+      "topic:reporendered",
+      "sub:reporendered/reporendered-languageapi"
+     ],
+     "focus": "topic:reporendered"
+    },
+    {
+     "title": "languageapi records it.",
+     "text": "The controller's waLangApiRenderings function upserts git_repo, content and one rendered_content row per file, reusing the same handlers as the REST routes. Meanwhile waLangApiGitTopics has synced the repo's topics from its own WACSEvent subscription.",
+     "nodes": [
+      "fn:lapi/waLangApiRenderings",
+      "route:lapi/rendering",
+      "route:lapi/content",
+      "route:lapi/git",
+      "table:rendered_content",
+      "table:content",
+      "table:git_repo",
+      "fn:lapi/waLangApiGitTopics"
+     ]
+    },
+    {
+     "title": "Hasura serves it.",
+     "text": "Hasura exposes the tables read-only over GraphQL. The smoke test and `fdb status` both query rendered_content here to prove the change made it all the way through.",
+     "nodes": [
+      "svc:lapi-hasura",
+      "table:rendered_content",
+      "py:fdb.clients",
+      "script:scripts/smoke.sh"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "startup",
+   "title": "Bringing the stack up",
+   "intro": "What `make reset` actually does, and why services start in the order they do.",
+   "steps": [
+    {
+     "title": "make reset = nuke, up, seed, smoke.",
+     "text": "Each step is its own target, so you can rerun any of them alone. `make nuke` drops every named volume; `make down` keeps them.",
+     "nodes": [
+      "make:reset",
+      "make:nuke",
+      "make:up",
+      "make:seed",
+      "make:smoke"
+     ]
+    },
+    {
+     "title": "Infrastructure first.",
+     "text": "Azurite and the Service Bus emulator (on SQL Server) start first. The emulator image has no shell, so sb-health probes it and the Functions apps wait on sb-health.",
+     "nodes": [
+      "svc:azurite",
+      "svc:sb-sql",
+      "svc:servicebus",
+      "svc:sb-health",
+      "file:config/servicebus/Config.json"
+     ]
+    },
+    {
+     "title": "Databases and migrations.",
+     "text": "MariaDB and Valkey come up for WACS. Postgres for languageapi gets the Drizzle migrations from the one-shot lapi-migrate job, and Hasura and the controller only start once it has completed successfully.",
+     "nodes": [
+      "svc:wacs-db",
+      "svc:wacs-redis",
+      "svc:lapi-postgres",
+      "svc:lapi-migrate",
+      "svc:lapi-hasura",
+      "svc:lapi-controller"
+     ]
+    },
+    {
+     "title": "Apps built from the submodules.",
+     "text": "WACS, both SRP apps and the languageapi controller are built from the pinned code in repos/. Where an upstream Dockerfile doesn't work, the umbrella's own Dockerfile in docker/ replaces it. Nothing in the submodules is modified.",
+     "nodes": [
+      "svc:wacs",
+      "svc:srp-webhook",
+      "svc:srp-worker",
+      "file:docker/srp/functions.Dockerfile",
+      "file:docker/languageapi/controller.Dockerfile",
+      "file:repos/wacs/wacs-gitea/Dockerfile"
+     ]
+    },
+    {
+     "title": "Seed wires the systems together.",
+     "text": "The seed creates the admin user, installs the token trigger, registers the WACS → SRP webhook, creates the blob containers, posts reference data to languageapi, and creates the demo repo. That repo's first commit is the first trip through the pipeline.",
+     "nodes": [
+      "script:seed/seed.sh",
+      "svc:wacs",
+      "svc:wacs-db",
+      "svc:tools",
+      "blob:$web",
+      "blob:template",
+      "svc:lapi-controller",
+      "file:seed/fixtures"
+     ]
+    },
+    {
+     "title": "Smoke proves it.",
+     "text": "Health checks for every service, then a real commit followed until it appears in Hasura. If this passes, the stack works.",
+     "nodes": [
+      "script:scripts/smoke.sh",
+      "script:scripts/lib.sh",
+      "svc:lapi-hasura",
+      "blob:$web"
+     ]
+    }
+   ],
+   "edge_kinds": [
+    "depends_on",
+    "runs",
+    "calls",
+    "uses",
+    "built_by",
+    "mounts"
+   ]
+  },
+  {
+   "id": "fdb",
+   "title": "Testing with real repos (fdb)",
+   "intro": "How the fdb CLI and HTTP API import, edit and follow a repo, and which systems they touch.",
+   "steps": [
+    {
+     "title": "Two front ends, one core.",
+     "text": "`tools/cli/fdb` runs on your machine; fdb-api runs the same package in a container on :7080. Both call fdb.core, so every operation returns the same dict.",
+     "nodes": [
+      "script:tools/cli/fdb",
+      "py:fdb.cli",
+      "svc:fdb-api",
+      "py:fdb.server",
+      "py:fdb.core"
+     ]
+    },
+    {
+     "title": "Import.",
+     "text": "Clones the source repo, creates it in the local WACS and pushes. The push fires the webhook, so the import renders like any other push. Pushing anywhere other than the local WACS is refused.",
+     "nodes": [
+      "ep:fdb/POST /import",
+      "py:fdb.core",
+      "py:fdb.config",
+      "py:fdb.clients",
+      "svc:wacs"
+     ],
+     "focus": "ep:fdb/POST /import"
+    },
+    {
+     "title": "Put.",
+     "text": "Replaces one file in one commit through the Gitea contents API, just like a real push.",
+     "nodes": [
+      "ep:fdb/PUT /repos/{owner}/{repo}/contents/{path}",
+      "py:fdb.core",
+      "svc:wacs"
+     ]
+    },
+    {
+     "title": "Status.",
+     "text": "Checks three stages for a commit: it's in WACS, $web's build_log.json names it (render), and Hasura's rendered_content was updated after that render ended (languageapi).",
+     "nodes": [
+      "ep:fdb/GET /repos/{owner}/{repo}/pipeline",
+      "py:fdb.clients",
+      "svc:wacs",
+      "blob:$web",
+      "svc:lapi-hasura",
+      "table:rendered_content"
+     ]
+    }
+   ]
+  }
+ ]
+}

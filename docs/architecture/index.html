@@ -1,0 +1,912 @@
+<!doctype html>
+<!-- Template for docs/architecture/index.html. Edit this file, then run `make graph`; the graph data is
+     inlined at the GRAPH_DATA marker so the page works from file:// with no server. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Architecture Graph</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --panel: #ffffff; --panel-2: #f1f1ee; --text: #1d1d1b; --muted: #6b6b66; --line: #e2e1dc;
+    --accent: #2f6fdb; --warn: #b45309; --warn-bg: #fef3c7; --chip: #ecebe6; --shadow: 0 1px 2px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.06);
+    --fade: .12;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141413; --panel: #1d1d1b; --panel-2: #252523; --text: #ecebe6; --muted: #9c9b95; --line: #33332f;
+      --accent: #7aa7ff; --warn: #fbbf24; --warn-bg: #3a2a07; --chip: #2c2c29; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.3);
+      --fade: .16;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141413; --panel: #1d1d1b; --panel-2: #252523; --text: #ecebe6; --muted: #9c9b95; --line: #33332f;
+    --accent: #7aa7ff; --warn: #fbbf24; --warn-bg: #3a2a07; --chip: #2c2c29; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.3);
+    --fade: .16;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--text); font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: grid; grid-template-rows: auto 1fr; overflow: hidden;
+  }
+  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .92em; }
+  code { background: var(--chip); padding: 0 .3em; border-radius: 4px; }
+  a { color: var(--accent); }
+  button { font: inherit; color: inherit; }
+
+  header {
+    display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--panel);
+    border-bottom: 1px solid var(--line); flex-wrap: wrap;
+  }
+  header h1 { font-size: 15px; margin: 0; font-weight: 650; white-space: nowrap; }
+  header .stats { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .views { display: flex; gap: 2px; background: var(--panel-2); padding: 3px; border-radius: 8px; flex-wrap: wrap; }
+  .views button { border: 0; background: transparent; padding: 4px 10px; border-radius: 6px; cursor: pointer; color: var(--muted); }
+  .views button[aria-pressed="true"] { background: var(--panel); color: var(--text); box-shadow: var(--shadow); }
+  .search { position: relative; margin-left: auto; min-width: 220px; flex: 0 1 320px; }
+  .search input {
+    width: 100%; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); color: var(--text);
+  }
+  .search input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .results {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 8px; box-shadow: var(--shadow); max-height: 60vh; overflow: auto; z-index: 20; display: none;
+  }
+  .results.open { display: block; }
+  .results button { display: flex; width: 100%; gap: 8px; align-items: baseline; border: 0; background: none; padding: 6px 10px; text-align: left; cursor: pointer; }
+  .results button[aria-selected="true"], .results button:hover { background: var(--panel-2); }
+  .results .r-kind { color: var(--muted); font-size: 12px; margin-left: auto; white-space: nowrap; }
+  .icon-btn { border: 1px solid var(--line); background: var(--panel-2); border-radius: 8px; padding: 5px 9px; cursor: pointer; }
+
+  main { display: grid; grid-template-columns: 260px 1fr auto; min-height: 0; }
+  aside.side { background: var(--panel); border-right: 1px solid var(--line); overflow: auto; padding: 12px 14px 24px; }
+  aside.side h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 18px 0 6px; font-weight: 600; }
+  aside.side h2:first-child { margin-top: 0; }
+  .tour-btn {
+    display: block; width: 100%; text-align: left; border: 1px solid var(--line); background: var(--panel-2); border-radius: 8px;
+    padding: 8px 10px; margin-bottom: 6px; cursor: pointer;
+  }
+  .tour-btn strong { display: block; font-size: 13px; }
+  .tour-btn span { color: var(--muted); font-size: 12px; }
+  .tour-btn:hover { border-color: var(--accent); }
+  .filters label { display: flex; align-items: center; gap: 8px; padding: 2px 0; cursor: pointer; font-size: 13px; }
+  .filters label .n { margin-left: auto; color: var(--muted); font-size: 12px; }
+  .filters input { margin: 0; accent-color: var(--accent); }
+  .sw { width: 14px; height: 14px; flex: none; display: inline-grid; place-items: center; }
+  .sw svg { display: block; }
+  .toggle-row { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 2px 0; cursor: pointer; }
+  .hint { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
+  .hint kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; background: var(--panel-2); }
+  .pins { font-size: 12px; color: var(--muted); }
+  .pins div { margin: 2px 0; }
+
+  .stage { position: relative; min-width: 0; min-height: 0; }
+  #cy { position: absolute; inset: 0; }
+  .banner {
+    position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--line);
+    border-radius: 999px; padding: 4px 6px 4px 14px; box-shadow: var(--shadow); display: none; align-items: center; gap: 8px; font-size: 13px; z-index: 5;
+    max-width: calc(100% - 32px);
+  }
+  .banner.open { display: flex; }
+  .banner button { border: 0; background: var(--panel-2); border-radius: 999px; padding: 2px 10px; cursor: pointer; }
+  .tooltip {
+    position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px;
+    font-size: 12px; box-shadow: var(--shadow); display: none; z-index: 6; max-width: 320px;
+  }
+  .canvas-tools { position: absolute; right: 12px; bottom: 12px; display: flex; gap: 6px; z-index: 5; }
+  .canvas-tools button { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 5px 10px; cursor: pointer; box-shadow: var(--shadow); }
+  .fallback { position: absolute; inset: 0; display: none; place-items: center; padding: 24px; text-align: center; color: var(--muted); }
+
+  .tour {
+    position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); width: min(620px, calc(100% - 32px));
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 14px 16px 12px; display: none; z-index: 7;
+  }
+  .tour.open { display: block; }
+  .tour .t-head { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+  .tour .t-head button { margin-left: auto; border: 0; background: none; cursor: pointer; font-size: 18px; line-height: 1; color: var(--muted); }
+  .tour h3 { margin: 4px 0 4px; font-size: 15px; }
+  .tour p { margin: 0 0 10px; }
+  .tour .t-nav { display: flex; gap: 8px; align-items: center; }
+  .tour .t-nav button { border: 1px solid var(--line); background: var(--panel-2); border-radius: 8px; padding: 5px 12px; cursor: pointer; }
+  .tour .t-nav button.primary { background: var(--accent); color: #fff; border-color: transparent; }
+  .tour .t-nav button:disabled { opacity: .4; cursor: default; }
+  .tour .dots { display: flex; gap: 4px; margin-left: auto; }
+  .tour .dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
+  .tour .dots i.on { background: var(--accent); }
+
+  aside.details {
+    width: 360px; background: var(--panel); border-left: 1px solid var(--line); overflow: auto; padding: 14px 16px 32px; display: none;
+  }
+  aside.details.open { display: block; }
+  .d-top { display: flex; align-items: flex-start; gap: 8px; }
+  .d-top h2 { margin: 0; font-size: 17px; word-break: break-word; }
+  .d-top button { margin-left: auto; border: 0; background: none; cursor: pointer; font-size: 20px; line-height: 1; color: var(--muted); }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 10px; }
+  .chip { background: var(--chip); border-radius: 999px; padding: 1px 9px; font-size: 12px; display: inline-flex; align-items: center; gap: 5px; }
+  .chip .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .chip.warn { background: var(--warn-bg); color: var(--warn); }
+  .details h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 16px 0 6px; font-weight: 600; }
+  .details p { margin: 0 0 8px; }
+  .note { background: var(--warn-bg); color: var(--text); border-left: 3px solid var(--warn); padding: 6px 10px; border-radius: 4px; margin: 6px 0; font-size: 13px; }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; font-size: 13px; }
+  .kv dt { color: var(--muted); }
+  .kv dd { margin: 0; word-break: break-word; }
+  .links a { display: block; margin: 2px 0; word-break: break-all; font-size: 13px; }
+  ul.tips { margin: 0; padding-left: 18px; }
+  .conn { list-style: none; margin: 0; padding: 0; }
+  .conn li { padding: 4px 0; border-bottom: 1px dashed var(--line); font-size: 13px; position: relative; padding-right: 52px; }
+  .conn .rel { color: var(--muted); }
+  .conn .lab { display: block; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+  .conn button { border: 0; background: none; padding: 0; color: var(--accent); cursor: pointer; text-align: left; overflow-wrap: anywhere; font: inherit; }
+  .conn .hidden-node { opacity: .65; }
+  .conn .ev { position: absolute; right: 0; top: 5px; color: var(--muted); font-size: 11px; cursor: help; border-bottom: 1px dotted var(--muted); }
+  .menu-btn { display: none; }
+
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; }
+    aside.side { position: absolute; z-index: 15; top: 0; bottom: 0; left: 0; width: 280px; transform: translateX(-100%); transition: transform .2s; box-shadow: var(--shadow); }
+    aside.side.open { transform: none; }
+    main { position: relative; }
+    aside.details { position: absolute; z-index: 16; right: 0; top: 0; bottom: 0; width: min(360px, 100%); box-shadow: var(--shadow); }
+    .menu-btn { display: inline-block; }
+    .search { flex-basis: 100%; margin-left: 0; order: 5; }
+    header { gap: 8px; padding: 8px 12px; }
+    header h1 { font-size: 14px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    header .stats { display: none; }
+    #themeBtn { order: 2; }
+    .views { order: 4; flex-basis: 100%; flex-wrap: nowrap; overflow-x: auto; }
+    .views button { white-space: nowrap; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <button class="icon-btn menu-btn" id="menuBtn" aria-label="Filters">☰</button>
+  <h1 id="title">Architecture graph</h1>
+  <span class="stats" id="stats"></span>
+  <nav class="views" id="views" aria-label="Views"></nav>
+  <div class="search">
+    <input id="q" type="search" placeholder="Search nodes  ( / )" autocomplete="off" aria-label="Search nodes">
+    <div class="results" id="results" role="listbox"></div>
+  </div>
+  <button class="icon-btn" id="themeBtn" aria-label="Toggle theme" title="Toggle light/dark"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" style="display:block"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.5a6.5 6.5 0 0 1 0 13Z" fill="currentColor"/></svg></button>
+</header>
+<main>
+  <aside class="side" id="side">
+    <h2>Guided tours</h2>
+    <div id="tours"></div>
+    <h2>Systems</h2>
+    <div class="filters" id="sysFilters"></div>
+    <h2>Node kinds</h2>
+    <div class="filters" id="kindFilters"></div>
+    <h2>Relationships</h2>
+    <div class="filters" id="edgeFilters"></div>
+    <label class="toggle-row" style="margin-top:8px"><input type="checkbox" id="inactiveToggle" checked> Show production-only parts</label>
+    <label class="toggle-row"><input type="checkbox" id="labelsToggle"> Always show edge labels</label>
+    <h2>How to use</h2>
+    <p class="hint">Click a node for details. <b>Double-click</b> to focus on its neighbours. <b>Shift-click</b> another node to show the path between them. <kbd>/</kbd> search, <kbd>Esc</kbd> reset, <kbd>←</kbd> <kbd>→</kbd> step through a tour.</p>
+    <h2>Generated from</h2>
+    <div class="pins" id="pins"></div>
+    <p class="hint">Regenerate with <code>make graph</code>. Curated text lives in <code>tools/graph/knowledge.json</code>.</p>
+  </aside>
+  <section class="stage">
+    <div id="cy" aria-label="Architecture graph canvas"></div>
+    <div class="banner" id="banner"><span id="bannerText"></span><button id="bannerClose">Clear</button></div>
+    <div class="tooltip" id="tip"></div>
+    <div class="canvas-tools">
+      <button id="fitBtn" title="Fit to screen">Fit</button>
+      <button id="relayoutBtn" title="Run the layout again">Re-layout</button>
+    </div>
+    <div class="fallback" id="fallback">
+      <div><p><strong>The graph library didn't load.</strong></p>
+      <p>This page loads Cytoscape.js from a CDN, so it needs internet access.<br>
+      The same information is in <a href="REPORT.md">REPORT.md</a> and <a href="graph.json">graph.json</a>.</p></div>
+    </div>
+    <div class="tour" id="tour" role="dialog" aria-label="Guided tour">
+      <div class="t-head"><span id="tourName"></span><span id="tourCount"></span><button id="tourClose" aria-label="Close tour">×</button></div>
+      <h3 id="tourTitle"></h3>
+      <p id="tourText"></p>
+      <div class="t-nav"><button id="tourPrev">← Back</button><button id="tourNext" class="primary">Next →</button><div class="dots" id="tourDots"></div></div>
+    </div>
+  </section>
+  <aside class="details" id="details" aria-live="polite"></aside>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.2/cytoscape.min.js"></script>
+<script src="https://unpkg.com/layout-base@2.0.1/layout-base.js"></script>
+<script src="https://unpkg.com/cose-base@2.2.0/cose-base.js"></script>
+<script src="https://unpkg.com/cytoscape-fcose@2.2.0/cytoscape-fcose.js"></script>
+<script>
+const GRAPH = {"meta":{"title":"field-data-backend architecture","repo_url":"https://github.com/AnonymousWalker/field-data-backend","generator":"tools/graph/build.py","submodules":[{"path":"repos/wacs","url":"https://github.com/WycliffeAssociates/WACS","sha":"00b31b5376408f054396b7251b03a1b64574fb00","branch":"prod"},{"path":"repos/srp","url":"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline","sha":"d5255debf3bfade4ce1be9d4df37f77a18407f0f","branch":"master"},{"path":"repos/languageapi","url":"https://github.com/WycliffeAssociates/languageapi","sha":"0cae62328df6abb9541ee49d308c84e132bfe6bb","branch":"prod"}],"counts":{"nodes":154,"edges":237,"blob":3,"endpoint":7,"file":16,"function":24,"make":20,"module":12,"script":5,"service":17,"subscription":12,"system":6,"table":19,"topic":7,"volume":6}},"edge_kinds":{"publishes":{"label":"publishes to","flow":true,"desc":"Sends messages to a Service Bus topic."},"delivers":{"label":"delivers to","flow":true,"desc":"A topic copies each message to a subscription (label = filter)."},"triggers":{"label":"triggers","flow":true,"desc":"A subscription invokes this consumer for each message."},"calls":{"label":"calls","flow":true,"desc":"Direct call: HTTP, a function call, or a script running a command."},"uses":{"label":"connects to","flow":false,"desc":"Runtime connection, from the service's environment (URLs, connection strings)."},"reads_writes":{"label":"reads/writes","flow":false,"desc":"Touches this table (from code references)."},"exposes":{"label":"exposes","flow":false,"desc":"Serves this table or endpoint."},"fk":{"label":"foreign key","flow":false,"desc":"Table references another table."},"depends_on":{"label":"starts after","flow":false,"desc":"Compose startup order (depends_on + condition)."},"stores":{"label":"stores data in","flow":false,"desc":"Mounts a named volume."},"mounts":{"label":"mounts","flow":false,"desc":"Bind-mounts a file/dir from this repo, or reads it as env_file."},"built_by":{"label":"built by","flow":false,"desc":"The Dockerfile that builds this service's image."},"imports":{"label":"imports","flow":false,"desc":"Python import."},"runs":{"label":"runs","flow":true,"desc":"A make target runs a script, compose, or another target."}},"node_kinds":{"system":{"label":"System","desc":"A whole project (or this repo's own tooling). Boxes group everything inside."},"service":{"label":"Container","desc":"A docker compose service. Dashed outline: deployed in production, not run locally."},"function":{"label":"Function / route","desc":"An Azure Function (HTTP, Service Bus or timer trigger) or an HTTP route."},"endpoint":{"label":"Endpoint","desc":"An HTTP endpoint exposed by a service."},"topic":{"label":"Topic","desc":"A Service Bus topic. Publishers send here; every subscription gets a copy."},"subscription":{"label":"Subscription","desc":"A Service Bus subscription: a filtered copy of a topic that one consumer reads."},"table":{"label":"Table / view","desc":"A Postgres table or view in the languageapi database."},"blob":{"label":"Blob container","desc":"An Azurite blob container."},"volume":{"label":"Volume","desc":"A named docker volume. `make nuke` deletes these."},"module":{"label":"Code module","desc":"A source module or class worth knowing about."},"file":{"label":"Config / file","desc":"A config file, Dockerfile or directory that shapes the stack."},"script":{"label":"Script","desc":"A shell or Python entry point you run."},"make":{"label":"make target","desc":"A Makefile target. Start here."}},"nodes":[{"id":"blob:$web","label":"$web","kind":"blob","sources":[],"attrs":{},"system":"infra","parent":"svc:azurite","desc":"The rendered static site, the same container a production static website serves from. Each repo lands under u/<owner>/<repo>/ with chapter pages, index.json and build_log.json. It's publicly readable locally, so pages open in a browser.","links":[{"label":"Demo repo output","url":"http://localhost:10000/devstoreaccount1/$web/u/fielddata/en_ulb/JUD/1.html"}]},{"id":"blob:template","label":"template","kind":"blob","sources":[],"attrs":{},"system":"infra","parent":"svc:azurite","desc":"Holds print.html, the template SRP wraps around rendered output. The seed uploads a minimal stand-in from seed/templates/."},{"id":"blob:versecounts","label":"versecounts","kind":"blob","sources":[],"attrs":{},"system":"infra","parent":"svc:azurite","desc":"Created by the seed for the verse-counting path."},{"id":"ep:fdb/GET /healthz","label":"GET /healthz","kind":"endpoint","sources":[{"path":"tools/fdb/server.py","line":27,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/tools/fdb/server.py#L27"}],"attrs":{},"system":"fdb","parent":"svc:fdb-api","desc":"`GET /healthz` served by `fdb-api`.","desc_auto":true},{"id":"ep:fdb/GET /repos","label":"GET /repos","kind":"endpoint","sources":[{"path":"tools/fdb/server.py","line":28,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/tools/fdb/server.py#L28"}],"attrs":{},"system":"fdb","parent":"svc:fdb-api","desc":"`GET /repos` served by `fdb-api`. Calls fdb.core.","desc_auto":true},{"id":"ep:fdb/GET /repos/{owner}/{repo}/pipeline","label":"GET /repos/{owner}/{repo}/pipeline","kind":"endpoint","sources":[{"path":"tools/fdb/server.py","line":31,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/tools/fdb/server.py#L31"}],"attrs":{},"system":"fdb","parent":"svc:fdb-api","desc":"`GET /repos/{owner}/{repo}/pipeline` served by `fdb-api`. Calls fdb.core.","desc_auto":true},{"id":"ep:fdb/POST /import","label":"POST /import","kind":"endpoint","sources":[{"path":"tools/fdb/server.py","line":29,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/tools/fdb/server.py#L29"}],"attrs":{},"system":"fdb","parent":"svc:fdb-api","desc":"`POST /import` served by `fdb-api`. Calls fdb.core.","desc_auto":true},{"id":"ep:fdb/PUT /repos/{owner}/{repo}/contents/{path}","label":"PUT /repos/{owner}/{repo}/contents/{path}","kind":"endpoint","sources":[{"path":"tools/fdb/server.py","line":30,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/tools/fdb/server.py#L30"}],"attrs":{},"system":"fdb","parent":"svc:fdb-api","desc":"`PUT /repos/{owner}/{repo}/contents/{path}` served by `fdb-api`. Calls fdb.core.","desc_auto":true},{"id":"file:.gitmodules","label":".gitmodules","kind":"file","sources":[{"path":".gitmodules","line":1,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/.gitmodules"}],"attrs":{},"system":"umbrella","parent":"sys:umbrella"},{"id":"file:compose.yaml","label":"compose.yaml","kind":"file","sources":[{"path":"compose.yaml","line":1,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose.yaml"}],"attrs":{},"system":"umbrella","parent":"sys:umbrella","desc":"Root compose file. It `include:`s compose/{infra,wacs,languageapi,srp,tools}.yaml, so every service in the graph comes from here."},{"id":"file:config/servicebus/Config.json","label":"Config.json","kind":"file","sources":[{"path":"config/servicebus/Config.json","line":1,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/config/servicebus/Config.json"}],"attrs":{},"system":"infra","parent":"sys:infra","desc":"The whole Service Bus topology: topics, subscriptions and filter rules, translated from repos/srp/infra/main.bicep. Changing routing between systems means editing this file."},{"id":"file:config/wacs.env","label":"wacs.env","kind":"file","sources":[{"path":"config/wacs.env","line":1,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/config/wacs.env"}],"attrs":{},"system":"wacs","parent":"sys:wacs","desc":"Local overrides layered on top of repos/wacs/.env (later env_file entries win). Only values that must differ for the umbrella stack belong here. Service names are prefixed in the umbrella stack. Allow Gitea to deliver webhooks to other containers on the compose network (default \"external\" blocks them)."},{"id":"file:docker/languageapi/controller.Dockerfile","label":"controller.Dockerfile","kind":"file","sources":[{"path":"docker/languageapi/controller.Dockerfile","line":1,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/docker/languageapi/controller.Dockerfile"}],"attrs":{},"system":"languageapi","parent":"sys:languageapi","desc":"Umbrella-owned build for the languageapi controller, with targets `migrate` and `runtime`. It replaces the upstream Dockerfile, which pins pnpm 8 while package.json needs pnpm 10."},{"id":"file:docker/srp/functions.Dockerfile","label":"functions.Dockerfile","kind":"file","sources":[{"path":"docker/srp/functions.Dockerfile","line":1,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/docker/srp/functions.Dockerfile"}],"attrs":{},"system":"srp","parent":"sys:srp","desc":"Umbrella-owned build for both SRP Functions apps (pick one with PROJECT=). It replaces the upstream Dockerfile, which builds a Functions Core Tools version that can't host net10."},{"id":"file:repos/languageapi/hasura/metadata","label":"repos/languageapi/hasura/metadata","kind":"file","sources":[{"path":"repos/languageapi/hasura/metadata","line":1,"url":"https://github.com/WycliffeAssociates/languageapi/tree/0cae62328df6abb9541ee49d308c84e132bfe6bb/hasura/metadata"}],"attrs":{"is_dir":true},"system":"languageapi","parent":"sys:languageapi","desc":"Directory `repos/languageapi/hasura/metadata`, used by `lapi-hasura`.","desc_auto":true},{"id":"file:repos/wacs/.env","label":"repos/wacs/.env","kind":"file","sources":[{"path":"repos/wacs/.env","line":1,"url":"https://github.com/WycliffeAssociates/WACS/blob/00b31b5376408f054396b7251b03a1b64574fb00/.env"}],"attrs":{},"system":"wacs","parent":"sys:wacs","desc":"Upstream WACS environment (Gitea settings, DB credentials). Loaded first; config/wacs.env overrides it."},{"id":"file:repos/wacs/wacs-gitea/Dockerfile","label":"repos/wacs/wacs-gitea/Dockerfile","kind":"file","sources":[{"path":"repos/wacs/wacs-gitea/Dockerfile","line":1,"url":"https://github.com/WycliffeAssociates/WACS/blob/00b31b5376408f054396b7251b03a1b64574fb00/wacs-gitea/Dockerfile"}],"attrs":{},"system":"wacs","parent":"sys:wacs","desc":"Grab the locale files from the gitea binary in the image Build locale files from gitea, with WA's overrides and new keys"},{"id":"file:seed","label":"seed","kind":"file","sources":[{"path":"seed","line":1,"url":"https://github.com/AnonymousWalker/field-data-backend/tree/main/seed"}],"attrs":{"is_dir":true},"system":"umbrella","parent":"sys:umbrella","desc":"Directory `seed`, used by `tools`.","desc_auto":true},{"id":"file:seed/fixtures","label":"seed/fixtures","kind":"file","sources":[{"path":"seed/fixtures","line":1,"url":"https://github.com/AnonymousWalker/field-data-backend/tree/main/seed/fixtures"}],"attrs":{"is_dir":true},"system":"umbrella","parent":"sys:umbrella","desc":"Directory `seed/fixtures`, used by `seed/seed.sh`.","desc_auto":true},{"id":"file:seed/languageapi","label":"seed/languageapi","kind":"file","sources":[{"path":"seed/languageapi","line":1,"url":"https://github.com/AnonymousWalker/field-data-backend/tree/main/seed/languageapi"}],"attrs":{"is_dir":true},"system":"umbrella","parent":"sys:umbrella","desc":"Directory `seed/languageapi`, used by `seed/seed.sh`.","desc_auto":true},{"id":"file:seed/sql/wacs-token-trigger.sql","label":"wacs-token-trigger.sql","kind":"file","sources":[{"path":"seed/sql/wacs-token-trigger.sql","line":1,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/seed/sql/wacs-token-trigger.sql"}],"attrs":{},"system":"umbrella","parent":"sys:umbrella"},{"id":"file:seed/templates","label":"seed/templates","kind":"file","sources":[{"path":"seed/templates","line":1,"url":"https://github.com/AnonymousWalker/field-data-backend/tree/main/seed/templates"}],"attrs":{"is_dir":true},"system":"umbrella","parent":"sys:umbrella","desc":"Directory `seed/templates`, used by `seed/seed.sh`.","desc_auto":true},{"id":"file:tools","label":"tools","kind":"file","sources":[{"path":"tools","line":1,"url":"https://github.com/AnonymousWalker/field-data-backend/tree/main/tools"}],"attrs":{"is_dir":true},"system":"fdb","parent":"sys:fdb","desc":"Directory `tools`, used by `fdb-api`.","desc_auto":true},{"id":"file:tools/http/Dockerfile","label":"tools/http/Dockerfile","kind":"file","sources":[{"path":"tools/http/Dockerfile","line":1,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/tools/http/Dockerfile"}],"attrs":{},"system":"fdb","parent":"sys:fdb","desc":"fdb-api: the fdb HTTP helper. The code itself (tools/fdb) is bind-mounted, so edits apply on restart. Optional build secret `extra_ca` is trusted while installing packages (TLS-intercepting proxies); it is removed again before the layer is committed."},{"id":"fn:lapi/manageLocalizationTable","label":"manageLocalizationTable","kind":"function","sources":[{"path":"repos/languageapi/controller/src/functions/localization.ts","line":169,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/functions/localization.ts#L169"}],"attrs":{"trigger":"timer","schedule":"1 1 */4 * * *"},"system":"languageapi","parent":"svc:lapi-controller","desc":"Timer. Fills the localization table with book names and resource-type labels for each supported UI language."},{"id":"fn:lapi/populateGlUsfmSources","label":"populateGlUsfmSources","kind":"function","sources":[{"path":"repos/languageapi/controller/src/functions/glUsfmSources.ts","line":249,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/functions/glUsfmSources.ts#L249"}],"attrs":{"trigger":"timer","schedule":"0 3 */12 * * *"},"system":"languageapi","parent":"svc:lapi-controller","desc":"Timer (every 12h). Walks WACS repos via WACS_API_URL to record gateway-language USFM sources."},{"id":"fn:lapi/waAudioRenderings","label":"waAudioRenderings","kind":"function","sources":[{"path":"repos/languageapi/controller/src/functions/audio-renderings-bus.ts","line":240,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/functions/audio-renderings-bus.ts#L240"}],"attrs":{"trigger":"servicebus","topic":"audiobiel","subscription":"languageapi"},"system":"languageapi","parent":"svc:lapi-controller","desc":"Consumes audiobiel (session-enabled) to record audio renderings. Nothing publishes to it locally."},{"id":"fn:lapi/waLangApiGitTopics","label":"waLangApiGitTopics","kind":"function","sources":[{"path":"repos/languageapi/controller/src/functions/bus-wacsevent-gitTopics.ts","line":128,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/functions/bus-wacsevent-gitTopics.ts#L128"}],"attrs":{"trigger":"servicebus","topic":"wacsevent","subscription":"languageapi"},"system":"languageapi","parent":"svc:lapi-controller","desc":"For every WACSEvent (languageapi subscription), syncs the repo's Gitea topics into git_topic / repo_topic."},{"id":"fn:lapi/waLangApiRenderings","label":"waLangApiRenderings","kind":"function","sources":[{"path":"repos/languageapi/controller/src/functions/renderings-bus.ts","line":266,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/functions/renderings-bus.ts#L266"}],"attrs":{"trigger":"servicebus","topic":"reporendered","subscription":"reporendered-languageapi"},"system":"languageapi","parent":"svc:lapi-controller","desc":"The end of the main flow. For each RepoRendered message it upserts the git_repo, content and rendered_content rows (plus scriptural/non-scriptural metadata), reusing the handlers behind the /api/git, /api/content and /api/rendering routes. Two racing messages for a new repo can roll back one transaction; that's a known upstream race."},{"id":"fn:srp/CheckRepoExists","label":"CheckRepoExists","kind":"function","sources":[{"path":"repos/srp/ScriptureRenderingPipeline/Rendering.cs","line":255,"url":"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipeline/Rendering.cs#L255"}],"attrs":{"trigger":"http","methods":["GET","POST"],"route":"/api/CheckRepoExists"},"system":"srp","parent":"svc:srp-webhook","desc":"HTTP: checks whether a repo exists and can be rendered."},{"id":"fn:srp/MergeTrigger","label":"MergeTrigger","kind":"function","sources":[{"path":"repos/srp/ScriptureRenderingPipelineWorker/MergeHandler.cs","line":46,"url":"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/MergeHandler.cs#L46"}],"attrs":{"trigger":"servicebus","topic":"MergeRequest","subscription":"MergeRequest"},"system":"srp","parent":"svc:srp-worker","desc":"Consumes MergeRequest, merges the USFM of several repos into one, and outputs MergedResult."},{"id":"fn:srp/MergeWebhook","label":"MergeWebhook","kind":"function","sources":[{"path":"repos/srp/ScriptureRenderingPipeline/Webhook.cs","line":125,"url":"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipeline/Webhook.cs#L125"}],"attrs":{"trigger":"http","methods":["POST"],"route":"/merge"},"system":"srp","parent":"svc:srp-webhook","desc":"POST /merge. Queues a merge of several repos by publishing to MergeRequest."},{"id":"fn:srp/ProgressReporting","label":"ProgressReporting","kind":"function","sources":[{"path":"repos/srp/ScriptureRenderingPipelineWorker/ProgressReporting.cs","line":29,"url":"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/ProgressReporting.cs#L29"}],"attrs":{"trigger":"servicebus","topic":"WACSEvent","subscription":"VerseCounting"},"system":"srp","parent":"svc:srp-worker","desc":"Counts verses in pushed Bible repos (VerseCounting subscription) and publishes VerseCountingResult. Its consumer, VerseReportingProcessor, isn't run locally, so the results go nowhere here."},{"id":"fn:srp/RegisterWebhook","label":"RegisterWebhook","kind":"function","sources":[{"path":"repos/srp/ScriptureRenderingPipeline/OutgoingWebhook.cs","line":61,"url":"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipeline/OutgoingWebhook.cs#L61"}],"attrs":{"trigger":"http","methods":["POST"],"route":"/api/RegisterWebhook"},"system":"srp","parent":"svc:srp-webhook","desc":"HTTP: registers an outgoing webhook that the WebhookDispatcher calls for matching events."},{"id":"fn:srp/RenderDoc","label":"RenderDoc","kind":"function","sources":[{"path":"repos/srp/ScriptureRenderingPipeline/Rendering.cs","line":27,"url":"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipeline/Rendering.cs#L27"}],"attrs":{"trigger":"http","methods":["GET","POST"],"route":"/api/RenderDoc"},"system":"srp","parent":"svc:srp-webhook","desc":"HTTP: renders a repo into a single document (for print/PDF) on demand, using the USFM renderer."},{"id":"fn:srp/RenderingTrigger","label":"RenderingTrigger","kind":"function","sources":[{"path":"repos/srp/ScriptureRenderingPipelineWorker/RenderingTrigger.cs","line":44,"url":"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/RenderingTrigger.cs#L44"}],"attrs":{"trigger":"servicebus","topic":"WACSEvent","subscription":"RenderingWebhook"},"system":"srp","parent":"svc:srp-worker","desc":"The heart of the pipeline. For each push/fork/create on WACSEvent (RenderingWebhook subscription) it downloads the repo zip from WACS, detects the resource type, runs the matching renderer, uploads the output and build_log.json to $web/u/<owner>/<repo>/, and publishes RepoRendered with Success set."},{"id":"fn:srp/RepoAnalysisTrigger","label":"RepoAnalysisTrigger","kind":"function","sources":[{"path":"repos/srp/ScriptureRenderingPipelineWorker/RepoAnalysisTrigger.cs","line":31,"url":"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/RepoAnalysisTrigger.cs#L31"}],"attrs":{"trigger":"servicebus","topic":"WACSEvent","subscription":"RepoAnalysis"},"system":"srp","parent":"svc:srp-worker","desc":"Works out a repo's resource type and language for every WACSEvent and publishes RepoAnalysisResult."},{"id":"fn:srp/UnregisterWebhook","label":"UnregisterWebhook","kind":"function","sources":[{"path":"repos/srp/ScriptureRenderingPipeline/OutgoingWebhook.cs","line":101,"url":"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipeline/OutgoingWebhook.cs#L101"}],"attrs":{"trigger":"http","methods":["DELETE"],"route":"/api/UnregisterWebhook"},"system":"srp","parent":"svc:srp-webhook","desc":"HTTP: removes an outgoing webhook registration."},{"id":"fn:srp/Webhook","label":"Webhook","kind":"function","sources":[{"path":"repos/srp/ScriptureRenderingPipeline/Webhook.cs","line":31,"url":"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipeline/Webhook.cs#L31"}],"attrs":{"trigger":"http","methods":["POST"],"route":"/webhook"},"system":"srp","parent":"svc:srp-webhook","desc":"POST /webhook. Deserializes the Gitea payload, reads the event type from X-GitHub-Event, rejects repos whose host isn't AllowedDomain, and publishes a WACSMessage (repo, user, action, latest commit...) to WACSEvent."},{"id":"fn:srp/WebhookDispatcherRepoAnalysisResultTrigger","label":"WebhookDispatcherRepoAnalysisResultTrigger","kind":"function","sources":[{"path":"repos/srp/ScriptureRenderingPipelineWorker/WebhookDispatcherTrigger.cs","line":69,"url":"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/WebhookDispatcherTrigger.cs#L69"}],"attrs":{"trigger":"servicebus","topic":"RepoAnalysisResult","subscription":"WebhookDispatcher"},"system":"srp","parent":"svc:srp-worker","desc":"Triggers a webhook dispatch based on an analyzed message from the service bus."},{"id":"fn:srp/WebhookDispatcherWACSMessageTrigger","label":"WebhookDispatcherWACSMessageTrigger","kind":"function","sources":[{"path":"repos/srp/ScriptureRenderingPipelineWorker/WebhookDispatcherTrigger.cs","line":27,"url":"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/WebhookDispatcherTrigger.cs#L27"}],"attrs":{"trigger":"servicebus","topic":"WACSEvent","subscription":"WebhookDispatcher"},"system":"srp","parent":"svc:srp-worker","desc":"Processes incoming WACS messages from the service bus and dispatches to webhooks."},{"id":"make:build","label":"make build","kind":"make","sources":[{"path":"Makefile","line":33,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L33"}],"attrs":{"recipe":["$(COMPOSE) build"]},"system":"umbrella","parent":"sys:umbrella","desc":"Build all locally-built images"},{"id":"make:bump","label":"make bump","kind":"make","sources":[{"path":"Makefile","line":99,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L99"}],"attrs":{"recipe":["git submodule update --remote","@git submodule status","@echo \"Review with 'git diff --submodule', then commit the new pins.\""]},"system":"umbrella","parent":"sys:umbrella","desc":"Move submodules to the tip of their tracked branches (review, then commit)"},{"id":"make:down","label":"make down","kind":"make","sources":[{"path":"Makefile","line":41,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L41"}],"attrs":{"recipe":["$(COMPOSE) --profile tools down --remove-orphans"]},"system":"umbrella","parent":"sys:umbrella","desc":"Stop containers (keeps data volumes)"},{"id":"make:graph","label":"make graph","kind":"make","sources":[{"path":"Makefile","line":88,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L88"}],"attrs":{"recipe":["python3 tools/graph/build.py"]},"system":"umbrella","parent":"sys:umbrella","desc":"Regenerate the interactive architecture graph (docs/architecture/index.html)"},{"id":"make:graph-check","label":"make graph-check","kind":"make","sources":[{"path":"Makefile","line":92,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L92"}],"attrs":{"recipe":["python3 tools/graph/build.py --check"]},"system":"umbrella","parent":"sys:umbrella","desc":"Fail if docs/architecture/ is out of date with the code"},{"id":"make:help","label":"make help","kind":"make","sources":[{"path":"Makefile","line":18,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L18"}],"attrs":{"recipe":["@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = \":.*?## \"}; {printf \"  \\033[36m%-12s\\033[0m %s\\n\", $$1, $$2}'"]},"system":"umbrella","parent":"sys:umbrella","desc":"Show this help"},{"id":"make:import","label":"make import","kind":"make","sources":[{"path":"Makefile","line":65,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L65"}],"attrs":{"recipe":["@test -n \"$(URL)\" || { echo \"usage: make import URL=<git url> [AS=owner/repo] [WAIT=300]\" >&2; exit 2; }","./tools/cli/fdb import \"$(URL)\" $(if $(AS),--as \"$(AS)\") $(if $(WAIT),--wait $(WAIT))"]},"system":"umbrella","parent":"sys:umbrella","desc":"Import a git repo into the local WACS (URL=<git url> [AS=owner/repo] [WAIT=300])"},{"id":"make:init","label":"make init","kind":"make","sources":[{"path":"Makefile","line":22,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L22"}],"attrs":{"recipe":["git submodule update --init --recursive"]},"system":"umbrella","parent":"sys:umbrella","desc":"Check out the pinned submodule commits"},{"id":"make:logs","label":"make logs","kind":"make","sources":[{"path":"Makefile","line":53,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L53"}],"attrs":{"recipe":["$(COMPOSE) logs -f --tail 100 $(S)"]},"system":"umbrella","parent":"sys:umbrella","desc":"Follow logs (S=service to filter, e.g. make logs S=srp-worker)"},{"id":"make:nuke","label":"make nuke","kind":"make","sources":[{"path":"Makefile","line":45,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L45"}],"attrs":{"recipe":["$(COMPOSE) --profile tools down -v --remove-orphans"]},"system":"umbrella","parent":"sys:umbrella","desc":"Stop containers and delete all data volumes"},{"id":"make:prepare","label":"make prepare","kind":"make","sources":[{"path":"Makefile","line":26,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L26"}],"attrs":{"recipe":["@test -f repos/wacs/.env && test -d repos/srp/PipelineCommon && test -d repos/languageapi/controller \\","|| { echo \"Submodules missing: run 'make init' first\" >&2; exit 1; }","@mkdir -p .local","@if [ -n \"$(EXTRA_CA_FILE)\" ]; then cp \"$(EXTRA_CA_FILE)\" .local/extra-ca.pem; else : > .local/extra-ca.pem; fi"]},"system":"umbrella","parent":"sys:umbrella","desc":"Internal step behind build/up: fails fast if the submodules aren't checked out, and stages the optional EXTRA_CA_FILE as .local/extra-ca.pem for image builds."},{"id":"make:ps","label":"make ps","kind":"make","sources":[{"path":"Makefile","line":49,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L49"}],"attrs":{"recipe":["$(COMPOSE) ps -a"]},"system":"umbrella","parent":"sys:umbrella","desc":"Show service status"},{"id":"make:put","label":"make put","kind":"make","sources":[{"path":"Makefile","line":70,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L70"}],"attrs":{"recipe":["@test -n \"$(REPO)\" -a -n \"$(FILE_PATH)\" -a -n \"$(SRC)\" || { echo \"usage: make put REPO=o/r FILE_PATH=<path> SRC=<file> [MSG=..] [WAIT=300]\" >&2; exit 2; }","./tools/cli/fdb put \"$(REPO)\" \"$(FILE_PATH)\" \"$(SRC)\" $(if $(MSG),-m \"$(MSG)\") $(if $(WAIT),--wait $(WAIT))"]},"system":"umbrella","parent":"sys:umbrella","desc":"Replace one file in one commit (REPO=owner/repo FILE_PATH=<path in repo> SRC=<local file> [MSG=] [WAIT=])"},{"id":"make:repos","label":"make repos","kind":"make","sources":[{"path":"Makefile","line":80,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L80"}],"attrs":{"recipe":["./tools/cli/fdb list"]},"system":"umbrella","parent":"sys:umbrella","desc":"List local WACS repos and their pipeline state"},{"id":"make:reset","label":"make reset","kind":"make","sources":[{"path":"Makefile","line":96,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L96"}],"attrs":{},"system":"umbrella","parent":"sys:umbrella","desc":"Fresh stack from scratch: nuke → up → seed → smoke. The first run builds images (~5–10 min). Run this when anything is weird.","tips":["Afterwards open the WACS demo repo and the rendered page."]},{"id":"make:seed","label":"make seed","kind":"make","sources":[{"path":"Makefile","line":57,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L57"}],"attrs":{"recipe":["./seed/seed.sh"]},"system":"umbrella","parent":"sys:umbrella","desc":"Idempotent setup: WACS admin, token trigger, system webhook WACS → SRP, Azurite containers + print template, languageapi reference data, and the demo repo (whose first commit fires the pipeline)."},{"id":"make:smoke","label":"make smoke","kind":"make","sources":[{"path":"Makefile","line":61,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L61"}],"attrs":{"recipe":["./scripts/smoke.sh"]},"system":"umbrella","parent":"sys:umbrella","desc":"Health checks for every service, then the real end-to-end test: push a commit with a unique marker, wait for build_log.json to contain it, then wait for Hasura to show fresh rendered_content rows."},{"id":"make:status","label":"make status","kind":"make","sources":[{"path":"Makefile","line":75,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L75"}],"attrs":{"recipe":["@test -n \"$(REPO)\" || { echo \"usage: make status REPO=owner/repo [WAIT=300]\" >&2; exit 2; }","./tools/cli/fdb status \"$(REPO)\" $(if $(WAIT),--wait $(WAIT))"]},"system":"umbrella","parent":"sys:umbrella","desc":"Pipeline status of a repo's head commit (REPO=owner/repo [WAIT=300])"},{"id":"make:test-tools","label":"make test-tools","kind":"make","sources":[{"path":"Makefile","line":84,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L84"}],"attrs":{"recipe":["./tools/test.sh"]},"system":"umbrella","parent":"sys:umbrella","desc":"Offline end-to-end test of the fdb CLI and HTTP API"},{"id":"make:up","label":"make up","kind":"make","sources":[{"path":"Makefile","line":37,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/Makefile#L37"}],"attrs":{"recipe":["$(COMPOSE) up -d --build --wait"]},"system":"umbrella","parent":"sys:umbrella","desc":"Build (if needed) and start everything, waiting until every healthcheck passes."},{"id":"py:fdb.cli","label":"fdb.cli","kind":"module","sources":[{"path":"tools/fdb/cli.py","line":1,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/tools/fdb/cli.py"}],"attrs":{},"system":"fdb","parent":"sys:fdb","desc":"fdb command line. Run `tools/cli/fdb --help`."},{"id":"py:fdb.clients","label":"fdb.clients","kind":"module","sources":[{"path":"tools/fdb/clients.py","line":1,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/tools/fdb/clients.py"}],"attrs":{},"system":"fdb","parent":"sys:fdb","desc":"Minimal stdlib clients for Gitea (WACS), Azurite blob, Hasura, and git."},{"id":"py:fdb.config","label":"fdb.config","kind":"module","sources":[{"path":"tools/fdb/config.py","line":1,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/tools/fdb/config.py"}],"attrs":{},"system":"fdb","parent":"sys:fdb","desc":"Endpoints and credentials, from the environment."},{"id":"py:fdb.core","label":"fdb.core","kind":"module","sources":[{"path":"tools/fdb/core.py","line":1,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/tools/fdb/core.py"}],"attrs":{},"system":"fdb","parent":"sys:fdb","desc":"fdb operations. Every function returns a plain dict, used as-is by the CLI (--json) and HTTP API."},{"id":"py:fdb.server","label":"fdb.server","kind":"module","sources":[{"path":"tools/fdb/server.py","line":1,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/tools/fdb/server.py"}],"attrs":{},"system":"fdb","parent":"sys:fdb","desc":"fdb HTTP API: the same operations as the CLI, as JSON over HTTP. Local use only (no auth)."},{"id":"renderer:BibleRenderer","label":"BibleRenderer","kind":"module","sources":[{"path":"repos/srp/ScriptureRenderingPipelineWorker/Renderers/BibleRenderer.cs","line":1,"url":"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/Renderers/BibleRenderer.cs"}],"attrs":{},"system":"srp","parent":"svc:srp-worker","desc":"Renderer used by `RenderingTrigger`.","desc_auto":true},{"id":"renderer:CommentaryRenderer","label":"CommentaryRenderer","kind":"module","sources":[{"path":"repos/srp/ScriptureRenderingPipelineWorker/Renderers/CommentaryRenderer.cs","line":1,"url":"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/Renderers/CommentaryRenderer.cs"}],"attrs":{},"system":"srp","parent":"svc:srp-worker","desc":"Renderer used by `RenderingTrigger`.","desc_auto":true},{"id":"renderer:TranslationManualRenderer","label":"TranslationManualRenderer","kind":"module","sources":[{"path":"repos/srp/ScriptureRenderingPipelineWorker/Renderers/TranslationManualRenderer.cs","line":1,"url":"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/Renderers/TranslationManualRenderer.cs"}],"attrs":{},"system":"srp","parent":"svc:srp-worker","desc":"Renderer used by `RenderingTrigger`.","desc_auto":true},{"id":"renderer:TranslationNotesRenderer","label":"TranslationNotesRenderer","kind":"module","sources":[{"path":"repos/srp/ScriptureRenderingPipelineWorker/Renderers/TranslationNotesRenderer.cs","line":1,"url":"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/Renderers/TranslationNotesRenderer.cs"}],"attrs":{},"system":"srp","parent":"svc:srp-worker","desc":"Renderer used by `RenderingTrigger`.","desc_auto":true},{"id":"renderer:TranslationQuestionsRenderer","label":"TranslationQuestionsRenderer","kind":"module","sources":[{"path":"repos/srp/ScriptureRenderingPipelineWorker/Renderers/TranslationQuestionsRenderer.cs","line":1,"url":"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/Renderers/TranslationQuestionsRenderer.cs"}],"attrs":{},"system":"srp","parent":"svc:srp-worker","desc":"Renderer used by `RenderingTrigger`.","desc_auto":true},{"id":"renderer:TranslationWordsRenderer","label":"TranslationWordsRenderer","kind":"module","sources":[{"path":"repos/srp/ScriptureRenderingPipelineWorker/Renderers/TranslationWordsRenderer.cs","line":1,"url":"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/blob/d5255debf3bfade4ce1be9d4df37f77a18407f0f/ScriptureRenderingPipelineWorker/Renderers/TranslationWordsRenderer.cs"}],"attrs":{},"system":"srp","parent":"svc:srp-worker","desc":"Renderer used by `RenderingTrigger`.","desc_auto":true},{"id":"renderer:USFMRenderer","label":"USFMRenderer","kind":"module","sources":[],"attrs":{},"system":"srp","parent":"sys:srp","desc":"Renderer used by `MergeTrigger`, `RenderDoc`.","desc_auto":true},{"id":"rest:hasura/consolidated-repos","label":"/api/rest/consolidated-repos","kind":"endpoint","sources":[{"path":"repos/languageapi/hasura/metadata/rest_endpoints.yaml","line":1,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/hasura/metadata/rest_endpoints.yaml"}],"attrs":{"methods":["GET"],"query":"Consolidated Repos"},"system":"languageapi","parent":"svc:lapi-hasura","desc":"`/api/rest/consolidated-repos` served by `lapi-hasura`.","desc_auto":true},{"id":"rest:hasura/langnames","label":"/api/rest/langnames","kind":"endpoint","sources":[{"path":"repos/languageapi/hasura/metadata/rest_endpoints.yaml","line":1,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/hasura/metadata/rest_endpoints.yaml"}],"attrs":{"methods":["GET"],"query":"langnames"},"system":"languageapi","parent":"svc:lapi-hasura","desc":"`/api/rest/langnames` served by `lapi-hasura`.","desc_auto":true},{"id":"route:lapi/content","label":"/api/content","kind":"function","sources":[{"path":"repos/languageapi/controller/src/routes/content.ts","line":43,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/routes/content.ts#L43"}],"attrs":{"trigger":"http","route":"/api/content","methods":["GET","POST","DELETE"]},"system":"languageapi","parent":"svc:lapi-controller","desc":"HTTP GET/POST/DELETE /api/content.","desc_auto":true},{"id":"route:lapi/contentWithRendering","label":"/api/contentWithRendering","kind":"function","sources":[{"path":"repos/languageapi/controller/src/routes/contentWithRendering.ts","line":28,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/routes/contentWithRendering.ts#L28"}],"attrs":{"trigger":"http","route":"/api/contentWithRendering","methods":["POST"]},"system":"languageapi","parent":"svc:lapi-controller","desc":"HTTP POST /api/contentWithRendering.","desc_auto":true},{"id":"route:lapi/country","label":"/api/country","kind":"function","sources":[{"path":"repos/languageapi/controller/src/routes/country.ts","line":41,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/routes/country.ts#L41"}],"attrs":{"trigger":"http","route":"/api/country","methods":["GET","POST","DELETE"]},"system":"languageapi","parent":"svc:lapi-controller","desc":"HTTP GET/POST/DELETE /api/country.","desc_auto":true},{"id":"route:lapi/git","label":"/api/git","kind":"function","sources":[{"path":"repos/languageapi/controller/src/routes/git.ts","line":42,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/routes/git.ts#L42"}],"attrs":{"trigger":"http","route":"/api/git","methods":["GET","POST","DELETE"]},"system":"languageapi","parent":"svc:lapi-controller","desc":"HTTP GET/POST/DELETE /api/git.","desc_auto":true},{"id":"route:lapi/language","label":"/api/language","kind":"function","sources":[{"path":"repos/languageapi/controller/src/routes/language.ts","line":44,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/routes/language.ts#L44"}],"attrs":{"trigger":"http","route":"/api/language","methods":["GET","POST","DELETE"]},"system":"languageapi","parent":"svc:lapi-controller","desc":"HTTP GET/POST/DELETE /api/language.","desc_auto":true},{"id":"route:lapi/region","label":"/api/region","kind":"function","sources":[{"path":"repos/languageapi/controller/src/routes/region.ts","line":41,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/routes/region.ts#L41"}],"attrs":{"trigger":"http","route":"/api/region","methods":["GET","POST","DELETE"]},"system":"languageapi","parent":"svc:lapi-controller","desc":"HTTP GET/POST/DELETE /api/region.","desc_auto":true},{"id":"route:lapi/rendering","label":"/api/rendering","kind":"function","sources":[{"path":"repos/languageapi/controller/src/routes/rendering.ts","line":43,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/routes/rendering.ts#L43"}],"attrs":{"trigger":"http","route":"/api/rendering","methods":["GET","POST","DELETE"]},"system":"languageapi","parent":"svc:lapi-controller","desc":"HTTP GET/POST/DELETE /api/rendering.","desc_auto":true},{"id":"script:scripts/lib.sh","label":"scripts/lib.sh","kind":"script","sources":[{"path":"scripts/lib.sh","line":1,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/scripts/lib.sh"}],"attrs":{},"system":"umbrella","parent":"sys:umbrella","desc":"Shared helpers sourced by the seed, smoke and tool tests: ports/URLs, `compose`, `gitea_api`, and `push_fixture` (commits seed/fixtures through the Gitea contents API, which fires a push webhook)."},{"id":"script:scripts/smoke.sh","label":"scripts/smoke.sh","kind":"script","sources":[{"path":"scripts/smoke.sh","line":1,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/scripts/smoke.sh"}],"attrs":{},"system":"umbrella","parent":"sys:umbrella","desc":"Smoke test for the local stack (run after `make up && make seed`): 1. every service answers its health endpoint 2. end-to-end: a new commit to the demo repo is rendered by SRP into Azurite and recorded by languageapi (visible through Hasura)"},{"id":"script:seed/seed.sh","label":"seed/seed.sh","kind":"script","sources":[{"path":"seed/seed.sh","line":1,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/seed/seed.sh"}],"attrs":{},"system":"umbrella","parent":"sys:umbrella","desc":"Idempotent seeding for the local stack. Safe to re-run; run after `make up`. 1. WACS: admin user, token-scope trigger, system webhook -> SRP 2. Azurite: SRP output/template containers + print template 3. languageapi: minimal reference data (region, country, language \"en\") 4. WACS: demo org + Bible repo from seed/fixtures (its commit fires the webhook -> render)"},{"id":"script:tools/cli/fdb","label":"tools/cli/fdb","kind":"script","sources":[{"path":"tools/cli/fdb","line":1,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/tools/cli/fdb"}],"attrs":{},"system":"fdb","parent":"sys:fdb","desc":"fdb: import, edit and follow WACS repos through the local stack. See `tools/cli/fdb --help`."},{"id":"script:tools/test.sh","label":"tools/test.sh","kind":"script","sources":[{"path":"tools/test.sh","line":1,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/tools/test.sh"}],"attrs":{},"system":"fdb","parent":"sys:fdb","desc":"Offline end-to-end test of the fdb CLI (tools/cli/fdb) and HTTP API (fdb-api). Run after `make up seed`. CLI : import a throwaway git repo (file://, built from seed/fixtures), put an edit, wait for the pipeline, check the rendered page. HTTP: import the seeded demo repo from inside the network, put an edit, wait, check. Guards: non-local WACS URLs are refused; imported mirrors can't push to their source."},{"id":"sub:audiobiel/languageapi","label":"languageapi","kind":"subscription","sources":[],"attrs":{"topic":"audiobiel","filter":"all messages"},"system":"infra","parent":"svc:servicebus","desc":"Copy of the `audiobiel` topic. Receives all messages; consumed by `waAudioRenderings`.","desc_auto":true},{"id":"sub:mergedresult/NotificationHandler","label":"NotificationHandler","kind":"subscription","sources":[],"attrs":{"topic":"mergedresult","filter":"all messages"},"system":"infra","parent":"svc:servicebus","desc":"Copy of the `mergedresult` topic. Receives all messages; consumed by `VerseReportingProcessor`.","desc_auto":true},{"id":"sub:mergerequest/MergeRequest","label":"MergeRequest","kind":"subscription","sources":[],"attrs":{"topic":"mergerequest","filter":"all messages"},"system":"infra","parent":"svc:servicebus","desc":"Copy of the `mergerequest` topic. Receives all messages; consumed by `MergeTrigger`.","desc_auto":true},{"id":"sub:repoanalysisresult/WebhookDispatcher","label":"WebhookDispatcher","kind":"subscription","sources":[],"attrs":{"topic":"repoanalysisresult","filter":"all messages"},"system":"infra","parent":"svc:servicebus","desc":"Copy of the `repoanalysisresult` topic. Receives all messages; consumed by `WebhookDispatcherRepoAnalysisResultTrigger`.","desc_auto":true},{"id":"sub:reporendered/reporendered-languageapi","label":"reporendered-languageapi","kind":"subscription","sources":[],"attrs":{"topic":"reporendered","filter":"all messages"},"system":"infra","parent":"svc:servicebus","desc":"Copy of the `reporendered` topic. Receives all messages; consumed by `waLangApiRenderings`.","desc_auto":true},{"id":"sub:versecountingresult/InternalProcessor","label":"InternalProcessor","kind":"subscription","sources":[],"attrs":{"topic":"versecountingresult","filter":"user.success=true"},"system":"infra","parent":"svc:servicebus","desc":"Copy of the `versecountingresult` topic. Receives user.success=true; consumed by `VerseReportingProcessor`.","desc_auto":true},{"id":"sub:wacsevent/InternalProcessor","label":"InternalProcessor","kind":"subscription","sources":[],"attrs":{"topic":"wacsevent","filter":"Action='deleted' and EventType='repository'"},"system":"infra","parent":"svc:servicebus","desc":"Copy of the `wacsevent` topic. Receives Action='deleted' and EventType='repository'; consumed by `VerseReportingProcessor`.","desc_auto":true},{"id":"sub:wacsevent/RenderingWebhook","label":"RenderingWebhook","kind":"subscription","sources":[],"attrs":{"topic":"wacsevent","filter":"eventType='push' or eventType='fork' or eventType='create'"},"system":"infra","parent":"svc:servicebus","desc":"Copy of the `wacsevent` topic. Receives eventType='push' or eventType='fork' or eventType='create'; consumed by `RenderingTrigger`.","desc_auto":true},{"id":"sub:wacsevent/RepoAnalysis","label":"RepoAnalysis","kind":"subscription","sources":[],"attrs":{"topic":"wacsevent","filter":"all messages"},"system":"infra","parent":"svc:servicebus","desc":"Copy of the `wacsevent` topic. Receives all messages; consumed by `RepoAnalysisTrigger`.","desc_auto":true},{"id":"sub:wacsevent/VerseCounting","label":"VerseCounting","kind":"subscription","sources":[],"attrs":{"topic":"wacsevent","filter":"eventType='push' or eventType='fork' or eventType='create'"},"system":"infra","parent":"svc:servicebus","desc":"Copy of the `wacsevent` topic. Receives eventType='push' or eventType='fork' or eventType='create'; consumed by `ProgressReporting`.","desc_auto":true},{"id":"sub:wacsevent/WebhookDispatcher","label":"WebhookDispatcher","kind":"subscription","sources":[],"attrs":{"topic":"wacsevent","filter":"all messages"},"system":"infra","parent":"svc:servicebus","desc":"Copy of the `wacsevent` topic. Receives all messages; consumed by `WebhookDispatcherWACSMessageTrigger`.","desc_auto":true},{"id":"sub:wacsevent/languageapi","label":"languageapi","kind":"subscription","sources":[],"attrs":{"topic":"wacsevent","filter":"all messages"},"system":"infra","parent":"svc:servicebus","desc":"Copy of the `wacsevent` topic. Receives all messages; consumed by `waLangApiGitTopics`.","desc_auto":true},{"id":"svc:BTTWriterCatalog","label":"BTTWriterCatalog","kind":"service","sources":[{"path":"repos/srp/BTTWriterCatalog","line":1,"url":"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/tree/d5255debf3bfade4ce1be9d4df37f77a18407f0f/BTTWriterCatalog"}],"attrs":{"inactive":true,"project":"BTTWriterCatalog"},"system":"srp","parent":"sys:srp","desc":"Builds the BTT Writer, BIEL and unfoldingWord catalogs from Cosmos DB change-feed triggers. It runs in production but not here, because it needs Cosmos DB."},{"id":"svc:VerseReportingProcessor","label":"VerseReportingProcessor","kind":"service","sources":[{"path":"repos/srp/VerseReportingProcessor","line":1,"url":"https://github.com/WycliffeAssociates/ScriptureRenderingPipeline/tree/d5255debf3bfade4ce1be9d4df37f77a18407f0f/VerseReportingProcessor"}],"attrs":{"inactive":true,"project":"VerseReportingProcessor"},"system":"srp","parent":"sys:srp","desc":"Consumes verse-counting results and merge notifications and reports them to PORT/Dataverse. It runs in production but not here: it needs a SQL Server stored procedure that isn't in the repo, plus PORT/Dataverse."},{"id":"svc:azurite","label":"azurite","kind":"service","sources":[{"path":"compose/infra.yaml","line":3,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/infra.yaml#L3"}],"attrs":{"image":"mcr.microsoft.com/azure-storage/azurite:3.35.0","ports":["10000:10000","10001:10001","10002:10002"],"command":"azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --tableHost 0.0.0.0 --location /data --loose --skipApiVersionCheck --disableProductStyleUrl"},"system":"infra","parent":"sys:infra","desc":"Azure Storage emulator (blob :10000, queue :10001, table :10002). It holds the rendered site in $web and serves as AzureWebJobsStorage for every Functions host.","links":[{"label":"Rendered demo page","url":"http://localhost:10000/devstoreaccount1/$web/u/fielddata/en_ulb/JUD/1.html"}]},{"id":"svc:fdb-api","label":"fdb-api","kind":"service","sources":[{"path":"compose/tools.yaml","line":4,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/tools.yaml#L4"}],"attrs":{"image":"fdb/fdb-api:local","ports":["127.0.0.1:7080:7080"],"build_context":"tools/http"},"system":"fdb","parent":"sys:fdb","desc":"The fdb HTTP helper on 127.0.0.1:7080, with no auth. It does the same operations as the CLI, as JSON. tools/ is bind-mounted, so code edits apply on restart. Imported mirrors live in the fdb_imports volume.","links":[{"label":"Health","url":"http://127.0.0.1:7080/healthz"},{"label":"List repos","url":"http://127.0.0.1:7080/repos"}]},{"id":"svc:lapi-controller","label":"lapi-controller","kind":"service","sources":[{"path":"compose/languageapi.yaml","line":58,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/languageapi.yaml#L58"}],"attrs":{"image":"fdb/lapi-controller:local","ports":["7072:80"],"build_context":"repos/languageapi/controller","source_dir":"repos/languageapi/controller"},"system":"languageapi","parent":"sys:languageapi","desc":"languageapi's write side (Node Azure Functions v4, built by the umbrella's controller.Dockerfile). REST routes under /api/* take reference data. Service Bus consumers record renderings and git topics. Timers backfill localizations and GL USFM sources. NODE_ENV is left unset on purpose, so it uses the production subscription names.","links":[{"label":"GET /api/language","url":"http://localhost:7072/api/language"}]},{"id":"svc:lapi-hasura","label":"lapi-hasura","kind":"service","sources":[{"path":"compose/languageapi.yaml","line":36,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/languageapi.yaml#L36"}],"attrs":{"image":"hasura/graphql-engine:v2.30.1.cli-migrations-v3","ports":["8080:8080"]},"system":"languageapi","parent":"sys:languageapi","desc":"Hasura GraphQL engine serving the public read API. The metadata (tracked tables, permissions, REST endpoints) is mounted read-only from repos/languageapi/hasura/metadata.","links":[{"label":"Hasura console","url":"http://localhost:8080/console"}],"tips":["Two objects are inconsistent by design: vw_consolidated_repos and the Consolidated Repos REST endpoint. No migration creates that view."]},{"id":"svc:lapi-migrate","label":"lapi-migrate","kind":"service","sources":[{"path":"compose/languageapi.yaml","line":22,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/languageapi.yaml#L22"}],"attrs":{"image":"fdb/lapi-migrate:local","build_context":"repos/languageapi/controller"},"system":"languageapi","parent":"sys:languageapi","desc":"One-shot job (target `migrate` of docker/languageapi/controller.Dockerfile). It applies controller/drizzle/*.sql, then exits. Hasura and the controller wait for it to complete successfully."},{"id":"svc:lapi-postgres","label":"lapi-postgres","kind":"service","sources":[{"path":"compose/languageapi.yaml","line":8,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/languageapi.yaml#L8"}],"attrs":{"image":"postgres:15.7"},"system":"languageapi","parent":"sys:languageapi","desc":"Postgres 15 with the languageapi data. The schema is owned by the Drizzle migrations that lapi-migrate applies."},{"id":"svc:sb-health","label":"sb-health","kind":"service","sources":[{"path":"compose/infra.yaml","line":53,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/infra.yaml#L53"}],"attrs":{"image":"curlimages/curl:8.11.1"},"system":"infra","parent":"sys:infra","desc":"Sidecar that waits for the emulator's /health endpoint. The emulator image has no shell for a healthcheck, so the Functions apps depend on this instead."},{"id":"svc:sb-sql","label":"sb-sql","kind":"service","sources":[{"path":"compose/infra.yaml","line":21,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/infra.yaml#L21"}],"attrs":{"image":"mcr.microsoft.com/mssql/server:2022-latest"},"system":"infra","parent":"sys:infra","desc":"SQL Server 2022, the Service Bus emulator's storage backend."},{"id":"svc:servicebus","label":"servicebus","kind":"service","sources":[{"path":"compose/infra.yaml","line":33,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/infra.yaml#L33"}],"attrs":{"image":"mcr.microsoft.com/azure-messaging/servicebus-emulator:latest","ports":["5672:5672","5300:5300"]},"system":"infra","parent":"sys:infra","desc":"Azure Service Bus emulator (AMQP :5672, management :5300). Every arrow between WACS, SRP and languageapi after the first webhook goes through here. It reads its topology from config/servicebus/Config.json, which is translated from repos/srp/infra/main.bicep."},{"id":"svc:srp-webhook","label":"srp-webhook","kind":"service","sources":[{"path":"compose/srp.yaml","line":18,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/srp.yaml#L18"}],"attrs":{"image":"fdb/srp-webhook:local","ports":["7071:80"],"build_context":"repos/srp","project":"ScriptureRenderingPipeline","source_dir":"repos/srp/ScriptureRenderingPipeline"},"system":"srp","parent":"sys:srp","desc":"SRP front door (project ScriptureRenderingPipeline). POST /webhook validates a Gitea webhook (the repo host must equal AllowedDomain=localhost) and publishes a WACSMessage to the WACSEvent topic. It doesn't render anything itself.","links":[{"label":"Webhook (POST only)","url":"http://localhost:7071/webhook"}],"tips":["`make logs S=srp-webhook`. A 400 for garbage input is healthy (the smoke test checks for it)."]},{"id":"svc:srp-worker","label":"srp-worker","kind":"service","sources":[{"path":"compose/srp.yaml","line":41,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/srp.yaml#L41"}],"attrs":{"image":"fdb/srp-worker:local","build_context":"repos/srp","project":"ScriptureRenderingPipelineWorker","source_dir":"repos/srp/ScriptureRenderingPipelineWorker"},"system":"srp","parent":"sys:srp","desc":"SRP rendering worker (project ScriptureRenderingPipelineWorker). It handles Service Bus messages only and has no public port. RenderingTrigger downloads the repo zip from WACS, picks a renderer from the resource type, writes HTML + index.json + build_log.json to the $web blob container, then publishes RepoRendered.","tips":["`make logs S=srp-worker` is the first place to look when a render doesn't show up.","Gitea credentials are keyed by the host in html_url (Gitea__localhost__*)."]},{"id":"svc:tools","label":"tools","kind":"service","sources":[{"path":"compose/infra.yaml","line":66,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/infra.yaml#L66"}],"attrs":{"image":"mcr.microsoft.com/azure-cli:2.67.0","profiles":["tools"]},"system":"infra","parent":"sys:infra","desc":"On-demand Azure CLI (compose profile `tools`). The seed uses it to create blob containers and upload the print template. Try `docker compose run --rm tools az storage blob list -c '$web'`."},{"id":"svc:wacs","label":"wacs","kind":"service","sources":[{"path":"compose/wacs.yaml","line":3,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/wacs.yaml#L3"}],"attrs":{"image":"fdb/wacs:local","ports":["3000:3000","2222:222"],"build_context":"repos/wacs/wacs-gitea"},"system":"wacs","parent":"sys:wacs","desc":"Gitea (WACS build) serving the web UI and API on :3000. Translators push here; every push/create/repository event goes to SRP through a system webhook that `make seed` registers. Config is the upstream repos/wacs/.env with config/wacs.env layered on top.","links":[{"label":"Open WACS","url":"http://localhost:3000/fielddata/en_ulb"},{"label":"API health","url":"http://localhost:3000/api/healthz"}],"tips":["Login fdbadmin / fdbadmin123 (seeded).","Set WACS_PREBUILT=1 to use the published image if the Go build can't reach the module proxy."]},{"id":"svc:wacs-db","label":"wacs-db","kind":"service","sources":[{"path":"compose/wacs.yaml","line":35,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/wacs.yaml#L35"}],"attrs":{"image":"mariadb:10.11","command":"mariadbd --innodb-buffer-pool-size=256M --max_connections=200"},"system":"wacs","parent":"sys:wacs","desc":"MariaDB 10.11 holding Gitea's database. The seed applies seed/sql/wacs-token-trigger.sql here, because the upstream trigger script fails on MariaDB."},{"id":"svc:wacs-redis","label":"wacs-redis","kind":"service","sources":[{"path":"compose/wacs.yaml","line":52,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/wacs.yaml#L52"}],"attrs":{"image":"valkey/valkey:7.2"},"system":"wacs","parent":"sys:wacs","desc":"Valkey (Redis-compatible) for Gitea's cache, queues and sessions."},{"id":"sys:fdb","label":"fdb tooling","kind":"system","sources":[],"attrs":{},"system":"fdb","desc":"Helper owned by this repo for testing with real content. It imports a repo into the local WACS, edits a file in one commit, and follows that commit through WACS, render and languageapi. There's a CLI on the host (tools/cli/fdb) and an HTTP API in a container (fdb-api), and both use one stdlib-only Python package (tools/fdb)."},{"id":"sys:infra","label":"Azure emulation","kind":"system","sources":[],"attrs":{},"system":"infra","desc":"Local stand-ins for the Azure services production uses. Azurite provides blob, queue and table storage, and AzureWebJobsStorage for every Functions app. The Service Bus emulator, backed by SQL Server, routes every message between the systems. Its topics, subscriptions and filters are all in config/servicebus/Config.json."},{"id":"sys:languageapi","label":"languageapi","kind":"system","sources":[],"attrs":{"submodule":"repos/languageapi"},"system":"languageapi","desc":"The public catalogue of languages, content and renderings. Postgres holds the data, with the schema owned by Drizzle migrations. Hasura serves it read-only over GraphQL and REST. The controller (Node Azure Functions) writes to it: REST routes for reference data, Service Bus consumers for pipeline events, and timers."},{"id":"sys:srp","label":"ScriptureRenderingPipeline","kind":"system","sources":[],"attrs":{"submodule":"repos/srp"},"system":"srp","desc":"SRP: .NET 10 isolated Azure Functions. srp-webhook is the front door: it turns a Gitea webhook into a WACSEvent message. srp-worker consumes those messages, renders the repo to static HTML in blob storage and announces RepoRendered. Other projects in the repo (catalogs, verse reporting) run in production but not here."},{"id":"sys:umbrella","label":"Dev workflow","kind":"system","sources":[],"attrs":{},"system":"umbrella","desc":"How you drive the stack: make targets, the seed and smoke scripts, and the pinned submodules. `make reset` is the one command that matters on day one."},{"id":"sys:wacs","label":"WACS","kind":"system","sources":[],"attrs":{"submodule":"repos/wacs"},"system":"wacs","desc":"WA Content Service: a WA-branded Gitea 1.23 where translation teams push content repos (Bibles, notes, words...). It is where every change starts. Each push fires a system webhook at SRP. Runs on MariaDB (wacs-db) with Valkey for cache, queue and sessions (wacs-redis)."},{"id":"table:content","label":"content","kind":"table","sources":[{"path":"repos/languageapi/controller/src/db/schema/schema.ts","line":119,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/db/schema/schema.ts#L119"}],"attrs":{"drizzle_export":"content"},"system":"languageapi","parent":"svc:lapi-postgres","desc":"One row per content repo (e.g. fielddata/en_ulb): name, language, type and domain. Most other content tables hang off it."},{"id":"table:country","label":"country","kind":"table","sources":[{"path":"repos/languageapi/controller/src/db/schema/schema.ts","line":314,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/db/schema/schema.ts#L314"}],"attrs":{"drizzle_export":"country"},"system":"languageapi","parent":"svc:lapi-postgres","desc":"Postgres table `country`. Touched by `/api/country`. Exposed through Hasura.","desc_auto":true},{"id":"table:country_to_language","label":"country_to_language","kind":"table","sources":[{"path":"repos/languageapi/controller/src/db/schema/schema.ts","line":330,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/db/schema/schema.ts#L330"}],"attrs":{"drizzle_export":"countryToLanguage"},"system":"languageapi","parent":"svc:lapi-postgres","desc":"Postgres table `country_to_language`. Exposed through Hasura.","desc_auto":true},{"id":"table:gateway_language_to_dependent_language","label":"gateway_language_to_dependent_language","kind":"table","sources":[{"path":"repos/languageapi/controller/src/db/schema/schema.ts","line":92,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/db/schema/schema.ts#L92"}],"attrs":{"drizzle_export":"languagesToLanguages"},"system":"languageapi","parent":"svc:lapi-postgres","desc":"Postgres table `gateway_language_to_dependent_language`. Exposed through Hasura.","desc_auto":true},{"id":"table:git_repo","label":"git_repo","kind":"table","sources":[{"path":"repos/languageapi/controller/src/db/schema/schema.ts","line":178,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/db/schema/schema.ts#L178"}],"attrs":{"drizzle_export":"gitRepo"},"system":"languageapi","parent":"svc:lapi-postgres","desc":"Where a content row lives in WACS (repo URL and owner)."},{"id":"table:git_topic","label":"git_topic","kind":"table","sources":[{"path":"repos/languageapi/controller/src/db/schema/schema.ts","line":199,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/db/schema/schema.ts#L199"}],"attrs":{"drizzle_export":"gitTopic"},"system":"languageapi","parent":"svc:lapi-postgres","desc":"Postgres table `git_topic`. Touched by `waLangApiGitTopics`. Exposed through Hasura.","desc_auto":true},{"id":"table:language","label":"language","kind":"table","sources":[{"path":"repos/languageapi/controller/src/db/schema/schema.ts","line":27,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/db/schema/schema.ts#L27"}],"attrs":{"drizzle_export":"language"},"system":"languageapi","parent":"svc:lapi-postgres","desc":"Languages keyed by IETF code. The seed POSTs `en` via /api/language."},{"id":"table:language_alternate_name","label":"language_alternate_name","kind":"table","sources":[{"path":"repos/languageapi/controller/src/db/schema/schema.ts","line":75,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/db/schema/schema.ts#L75"}],"attrs":{"drizzle_export":"languageAlternateName"},"system":"languageapi","parent":"svc:lapi-postgres","desc":"Postgres table `language_alternate_name`. Touched by `/api/language`. Exposed through Hasura.","desc_auto":true},{"id":"table:localization","label":"localization","kind":"table","sources":[{"path":"repos/languageapi/controller/src/db/schema/schema.ts","line":354,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/db/schema/schema.ts#L354"}],"attrs":{"drizzle_export":"localization"},"system":"languageapi","parent":"svc:lapi-postgres","desc":"Postgres table `localization`. Touched by `manageLocalizationTable`. Exposed through Hasura.","desc_auto":true},{"id":"table:nonscriptural_rendering_metadata","label":"nonscriptural_rendering_metadata","kind":"table","sources":[{"path":"repos/languageapi/controller/src/db/schema/schema.ts","line":275,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/db/schema/schema.ts#L275"}],"attrs":{"drizzle_export":"nonScripturalRenderingMetadata"},"system":"languageapi","parent":"svc:lapi-postgres","desc":"Postgres table `nonscriptural_rendering_metadata`. Touched by `/api/rendering`. Exposed through Hasura.","desc_auto":true},{"id":"table:rendered_content","label":"rendered_content","kind":"table","sources":[{"path":"repos/languageapi/controller/src/db/schema/schema.ts","line":225,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/db/schema/schema.ts#L225"}],"attrs":{"drizzle_export":"rendering"},"system":"languageapi","parent":"svc:lapi-postgres","desc":"One row per rendered file URL in $web, linked to content. The smoke test and `fdb status` query this through Hasura to prove the pipeline finished. (Drizzle export: `rendering`.)"},{"id":"table:repo_topic","label":"repo_topic","kind":"table","sources":[{"path":"repos/languageapi/controller/src/db/schema/schema.ts","line":207,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/db/schema/schema.ts#L207"}],"attrs":{"drizzle_export":"repoToTopic"},"system":"languageapi","parent":"svc:lapi-postgres","desc":"Postgres table `repo_topic`. Touched by `waLangApiGitTopics`. Exposed through Hasura.","desc_auto":true},{"id":"table:scriptural_rendering_metadata","label":"scriptural_rendering_metadata","kind":"table","sources":[{"path":"repos/languageapi/controller/src/db/schema/schema.ts","line":250,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/db/schema/schema.ts#L250"}],"attrs":{"drizzle_export":"scripturalRenderingMetadata"},"system":"languageapi","parent":"svc:lapi-postgres","desc":"Postgres table `scriptural_rendering_metadata`. Touched by `/api/rendering`, `manageLocalizationTable`, `populateGlUsfmSources`, `waAudioRenderings`. Exposed through Hasura.","desc_auto":true},{"id":"table:source_zips","label":"source_zips","kind":"table","sources":[{"path":"repos/languageapi/hasura/metadata/databases/languageapi/tables/public_source_zips.yaml","line":1,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/hasura/metadata/databases/languageapi/tables/public_source_zips.yaml"}],"attrs":{"drizzle":false},"system":"languageapi","parent":"svc:lapi-postgres","notes":["Tracked by Hasura; not declared in the Drizzle schema (created by raw SQL migrations or a later rename)."],"desc":"Postgres table `source_zips`. Exposed through Hasura.","desc_auto":true},{"id":"table:vw_consolidated_repos","label":"vw_consolidated_repos","kind":"table","sources":[{"path":"repos/languageapi/hasura/metadata/databases/languageapi/tables/public_vw_consolidated_repos.yaml","line":1,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/hasura/metadata/databases/languageapi/tables/public_vw_consolidated_repos.yaml"}],"attrs":{"view":true,"drizzle":false,"known_gap":true},"system":"languageapi","parent":"svc:lapi-postgres","notes":["View is tracked by Hasura but no migration creates it, so Hasura marks it inconsistent."],"desc":"Postgres view `vw_consolidated_repos`. Touched by `/api/rest/consolidated-repos`. Exposed through Hasura.","desc_auto":true},{"id":"table:vw_langnames","label":"vw_langnames","kind":"table","sources":[{"path":"repos/languageapi/hasura/metadata/databases/languageapi/tables/public_vw_langnames.yaml","line":1,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/hasura/metadata/databases/languageapi/tables/public_vw_langnames.yaml"}],"attrs":{"view":true,"drizzle":false},"system":"languageapi","parent":"svc:lapi-postgres","notes":["Created by a migration (raw SQL), not declared in the Drizzle schema."],"desc":"Postgres view `vw_langnames`. Touched by `/api/rest/langnames`. Exposed through Hasura.","desc_auto":true},{"id":"table:wa_content_metadata","label":"wa_content_metadata","kind":"table","sources":[{"path":"repos/languageapi/controller/src/db/schema/schema.ts","line":143,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/db/schema/schema.ts#L143"}],"attrs":{"drizzle_export":"waContentMetadata"},"system":"languageapi","parent":"svc:lapi-postgres","desc":"Postgres table `wa_content_metadata`. Touched by `/api/content`, `populateGlUsfmSources`. Exposed through Hasura.","desc_auto":true},{"id":"table:wa_language_metadata","label":"wa_language_metadata","kind":"table","sources":[{"path":"repos/languageapi/controller/src/db/schema/schema.ts","line":53,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/db/schema/schema.ts#L53"}],"attrs":{"drizzle_export":"waLangMetadata"},"system":"languageapi","parent":"svc:lapi-postgres","desc":"Postgres table `wa_language_metadata`. Touched by `/api/language`, `populateGlUsfmSources`. Exposed through Hasura.","desc_auto":true},{"id":"table:world_region","label":"world_region","kind":"table","sources":[{"path":"repos/languageapi/controller/src/db/schema/schema.ts","line":299,"url":"https://github.com/WycliffeAssociates/languageapi/blob/0cae62328df6abb9541ee49d308c84e132bfe6bb/controller/src/db/schema/schema.ts#L299"}],"attrs":{"drizzle_export":"worldRegion"},"system":"languageapi","parent":"svc:lapi-postgres","desc":"Postgres table `world_region`. Touched by `/api/country`, `/api/region`. Exposed through Hasura.","desc_auto":true},{"id":"topic:audiobiel","label":"audiobiel","kind":"topic","sources":[{"path":"config/servicebus/Config.json","line":325,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/config/servicebus/Config.json#L325"}],"attrs":{},"system":"infra","parent":"svc:servicebus","desc":"Audio renderings for BIEL. Declared so the controller's consumer can start; nothing publishes locally."},{"id":"topic:mergedresult","label":"mergedresult","kind":"topic","sources":[{"path":"config/servicebus/Config.json","line":292,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/config/servicebus/Config.json#L292"}],"attrs":{},"system":"infra","parent":"svc:servicebus","desc":"Finished merges. Consumed by the NotificationHandler in VerseReportingProcessor (not run locally)."},{"id":"topic:mergerequest","label":"mergerequest","kind":"topic","sources":[{"path":"config/servicebus/Config.json","line":259,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/config/servicebus/Config.json#L259"}],"attrs":{},"system":"infra","parent":"svc:servicebus","desc":"Merge jobs queued by POST /merge."},{"id":"topic:repoanalysisresult","label":"repoanalysisresult","kind":"topic","sources":[{"path":"config/servicebus/Config.json","line":193,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/config/servicebus/Config.json#L193"}],"attrs":{},"system":"infra","parent":"svc:servicebus","desc":"Resource type and language detected for a repo. Consumed by the WebhookDispatcher."},{"id":"topic:reporendered","label":"reporendered","kind":"topic","sources":[{"path":"config/servicebus/Config.json","line":160,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/config/servicebus/Config.json#L160"}],"attrs":{},"system":"infra","parent":"svc:servicebus","desc":"Published by RenderingTrigger after every render, successful or not. languageapi listens here to record what was rendered."},{"id":"topic:versecountingresult","label":"versecountingresult","kind":"topic","sources":[{"path":"config/servicebus/Config.json","line":226,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/config/servicebus/Config.json#L226"}],"attrs":{},"system":"infra","parent":"svc:servicebus","desc":"Verse counts per pushed Bible repo. Only successful counts reach InternalProcessor (VerseReportingProcessor, not run locally)."},{"id":"topic:wacsevent","label":"wacsevent","kind":"topic","sources":[{"path":"config/servicebus/Config.json","line":9,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/config/servicebus/Config.json#L9"}],"attrs":{},"system":"infra","parent":"svc:servicebus","desc":"The fan-out point. One message per WACS webhook, copied to every subscription: render, verse count, analysis, webhook dispatch, languageapi topics, and deletes for the verse processor. Subscriptions filter on the eventType/Action application properties."},{"id":"vol:azurite_data","label":"azurite_data","kind":"volume","sources":[{"path":"compose/infra.yaml","line":3,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/infra.yaml#L3"}],"attrs":{"mount":"/data"},"system":"infra","parent":"sys:infra","desc":"Named docker volume, mounted at `/data` by `azurite`. `make nuke` deletes it.","desc_auto":true},{"id":"vol:fdb_imports","label":"fdb_imports","kind":"volume","sources":[{"path":"compose/tools.yaml","line":4,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/tools.yaml#L4"}],"attrs":{"mount":"/data/imports"},"system":"fdb","parent":"sys:fdb","desc":"Named docker volume, mounted at `/data/imports` by `fdb-api`. `make nuke` deletes it.","desc_auto":true},{"id":"vol:lapi_pgdata","label":"lapi_pgdata","kind":"volume","sources":[{"path":"compose/languageapi.yaml","line":8,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/languageapi.yaml#L8"}],"attrs":{"mount":"/var/lib/postgresql/data"},"system":"languageapi","parent":"sys:languageapi","desc":"Named docker volume, mounted at `/var/lib/postgresql/data` by `lapi-postgres`. `make nuke` deletes it.","desc_auto":true},{"id":"vol:wacs_config","label":"wacs_config","kind":"volume","sources":[{"path":"compose/wacs.yaml","line":3,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/wacs.yaml#L3"}],"attrs":{"mount":"/etc/gitea"},"system":"wacs","parent":"sys:wacs","desc":"Named docker volume, mounted at `/etc/gitea` by `wacs`. `make nuke` deletes it.","desc_auto":true},{"id":"vol:wacs_data","label":"wacs_data","kind":"volume","sources":[{"path":"compose/wacs.yaml","line":3,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/wacs.yaml#L3"}],"attrs":{"mount":"/var/lib/gitea"},"system":"wacs","parent":"sys:wacs","desc":"Named docker volume, mounted at `/var/lib/gitea` by `wacs`. `make nuke` deletes it.","desc_auto":true},{"id":"vol:wacs_db_data","label":"wacs_db_data","kind":"volume","sources":[{"path":"compose/wacs.yaml","line":35,"url":"https://github.com/AnonymousWalker/field-data-backend/blob/main/compose/wacs.yaml#L35"}],"attrs":{"mount":"/var/lib/mysql"},"system":"wacs","parent":"sys:wacs","desc":"Named docker volume, mounted at `/var/lib/mysql` by `wacs-db`. `make nuke` deletes it.","desc_auto":true}],"edges":[{"source":"ep:fdb/GET /repos","target":"py:fdb.core","kind":"calls","labels":["core.list_repos()"],"evidence":["tools/fdb/server.py"],"origin":"extracted"},{"source":"ep:fdb/GET /repos/{owner}/{repo}/pipeline","target":"py:fdb.core","kind":"calls","labels":["core.pipeline_status()"],"evidence":["tools/fdb/server.py"],"origin":"extracted"},{"source":"ep:fdb/POST /import","target":"py:fdb.core","kind":"calls","labels":["core.import_repo()","core.pipeline_status()"],"evidence":["tools/fdb/server.py"],"origin":"extracted"},{"source":"ep:fdb/PUT /repos/{owner}/{repo}/contents/{path}","target":"py:fdb.core","kind":"calls","labels":["core.pipeline_status()","core.put_file()"],"evidence":["tools/fdb/server.py"],"origin":"extracted"},{"source":"fn:lapi/manageLocalizationTable","target":"table:content","kind":"reads_writes","labels":[],"evidence":["repos/languageapi/controller/src/functions/localization.ts"],"origin":"extracted"},{"source":"fn:lapi/manageLocalizationTable","target":"table:git_repo","kind":"reads_writes","labels":[],"evidence":["repos/languageapi/controller/src/functions/localization.ts"],"origin":"extracted"},{"source":"fn:lapi/manageLocalizationTable","target":"table:language","kind":"reads_writes","labels":[],"evidence":["repos/languageapi/controller/src/functions/localization.ts"],"origin":"extracted"},{"source":"fn:lapi/manageLocalizationTable","target":"table:localization","kind":"reads_writes","labels":[],"evidence":["repos/languageapi/controller/src/functions/localization.ts"],"origin":"extracted"},{"source":"fn:lapi/manageLocalizationTable","target":"table:rendered_content","kind":"reads_writes","labels":[],"evidence":["repos/languageapi/controller/src/functions/localization.ts"],"origin":"extracted"},{"source":"fn:lapi/manageLocalizationTable","target":"table:scriptural_rendering_metadata","kind":"reads_writes","labels":[],"evidence":["repos/languageapi/controller/src/functions/localization.ts"],"origin":"extracted"},{"source":"fn:lapi/populateGlUsfmSources","target":"svc:wacs","kind":"uses","labels":[],"evidence":["repos/languageapi/controller/src/functions/glUsfmSources.ts reads WACS_API_URL=http://wacs:3000/api/v1"],"origin":"extracted"},{"source":"fn:lapi/populateGlUsfmSources","target":"table:content","kind":"reads_writes","labels":[],"evidence":["repos/languageapi/controller/src/functions/glUsfmSources.ts"],"origin":"extracted"},{"source":"fn:lapi/populateGlUsfmSources","target":"table:git_repo","kind":"reads_writes","labels":[],"evidence":["repos/languageapi/controller/src/functions/glUsfmSources.ts"],"origin":"extracted"},{"source":"fn:lapi/populateGlUsfmSources","target":"table:language","kind":"reads_writes","labels":[],"evidence":["repos/languageapi/controller/src/functions/glUsfmSources.ts"],"origin":"extracted"},{"source":"fn:lapi/populateGlUsfmSources","target":"table:rendered_content","kind":"reads_writes","labels":[],"evidence":["repos/languageapi/controller/src/functions/glUsfmSources.ts"],"origin":"extracted"},{"source":"fn:lapi/populateGlUsfmSources","target":"table:scriptural_rendering_metadata","kind":"reads_writes","labels":[],"evidence":["repos/languageapi/controller/src/functions/glUsfmSources.ts"],"origin":"extracted"},{"source":"fn:lapi/populateGlUsfmSources","target":"table:wa_content_metadata","kind":"reads_writes","labels":[],"evidence":["repos/languageapi/controller/src/functions/glUsfmSources.ts"],"origin":"extracted"},{"source":"fn:lapi/populateGlUsfmSources","target":"table:wa_language_metadata","kind":"reads_writes","labels":[],"evidence":["repos/languageapi/controller/src/functions/glUsfmSources.ts"],"origin":"extracted"},{"source":"fn:lapi/waAudioRenderings","target":"route:lapi/content","kind":"calls","labels":["reuses handler"],"evidence":["repos/languageapi/controller/src/functions/audio-renderings-bus.ts"],"origin":"extracted"},{"source":"fn:lapi/waAudioRenderings","target":"route:lapi/rendering","kind":"calls","labels":["reuses handler"],"evidence":["repos/languageapi/controller/src/functions/audio-renderings-bus.ts"],"origin":"extracted"},{"source":"fn:lapi/waAudioRenderings","target":"table:rendered_content","kind":"reads_writes","labels":[],"evidence":["repos/languageapi/controller/src/functions/audio-renderings-bus.ts"],"origin":"extracted"},{"source":"fn:lapi/waAudioRenderings","target":"table:scriptural_rendering_metadata","kind":"reads_writes","labels":[],"evidence":["repos/languageapi/controller/src/functions/audio-renderings-bus.ts"],"origin":"extracted"},{"source":"fn:lapi/waLangApiGitTopics","target":"table:git_repo","kind":"reads_writes","labels":[],"evidence":["repos/languageapi/controller/src/functions/bus-wacsevent-gitTopics.ts"],"origin":"extracted"},{"source":"fn:lapi/waLangApiGitTopics","target":"table:git_topic","kind":"reads_writes","labels":[],"evidence":["repos/languageapi/controller/src/functions/bus-wacsevent-gitTopics.ts"],"origin":"extracted"},{"source":"fn:lapi/waLangApiGitTopics","target":"table:repo_topic","kind":"reads_writes","labels":[],"evidence":["repos/languageapi/controller/src/functions/bus-wacsevent-gitTopics.ts"],"origin":"extracted"},{"source":"fn:lapi/waLangApiRenderings","target":"route:lapi/content","kind":"calls","labels":["reuses handler"],"evidence":["repos/languageapi/controller/src/functions/renderings-bus.ts"],"origin":"extracted"},{"source":"fn:lapi/waLangApiRenderings","target":"route:lapi/git","kind":"calls","labels":["reuses handler"],"evidence":["repos/languageapi/controller/src/functions/renderings-bus.ts"],"origin":"extracted"},{"source":"fn:lapi/waLangApiRenderings","target":"route:lapi/rendering","kind":"calls","labels":["reuses handler"],"evidence":["repos/languageapi/controller/src/functions/renderings-bus.ts"],"origin":"extracted"},{"source":"fn:srp/MergeTrigger","target":"renderer:USFMRenderer","kind":"calls","labels":["renders with"],"evidence":["repos/srp/ScriptureRenderingPipelineWorker/MergeHandler.cs:63"],"origin":"extracted"},{"source":"fn:srp/MergeTrigger","target":"topic:mergedresult","kind":"publishes","labels":[],"evidence":["repos/srp/ScriptureRenderingPipelineWorker/MergeHandler.cs:47"],"origin":"extracted"},{"source":"fn:srp/MergeWebhook","target":"topic:mergerequest","kind":"publishes","labels":[],"evidence":["repos/srp/ScriptureRenderingPipeline/Webhook.cs:138"],"origin":"extracted"},{"source":"fn:srp/ProgressReporting","target":"topic:versecountingresult","kind":"publishes","labels":[],"evidence":["repos/srp/ScriptureRenderingPipelineWorker/ProgressReporting.cs:30","repos/srp/ScriptureRenderingPipelineWorker/ProgressReporting.cs:43"],"origin":"extracted"},{"source":"fn:srp/RenderDoc","target":"renderer:USFMRenderer","kind":"calls","labels":["renders with"],"evidence":["repos/srp/ScriptureRenderingPipeline/Rendering.cs:125"],"origin":"extracted"},{"source":"fn:srp/RenderingTrigger","target":"blob:$web","kind":"calls","labels":["writes HTML, index.json, build_log.json"],"evidence":["ScripturePipelineStorageOutputContainer=$web"],"origin":"curated"},{"source":"fn:srp/RenderingTrigger","target":"blob:template","kind":"calls","labels":["reads print.html"],"evidence":["ScripturePipelineStorageTemplateContainer=template"],"origin":"curated"},{"source":"fn:srp/RenderingTrigger","target":"renderer:BibleRenderer","kind":"calls","labels":["renders with"],"evidence":["repos/srp/ScriptureRenderingPipelineWorker/RenderingTrigger.cs:302"],"origin":"extracted"},{"source":"fn:srp/RenderingTrigger","target":"renderer:CommentaryRenderer","kind":"calls","labels":["renders with"],"evidence":["repos/srp/ScriptureRenderingPipelineWorker/RenderingTrigger.cs:322"],"origin":"extracted"},{"source":"fn:srp/RenderingTrigger","target":"renderer:TranslationManualRenderer","kind":"calls","labels":["renders with"],"evidence":["repos/srp/ScriptureRenderingPipelineWorker/RenderingTrigger.cs:318"],"origin":"extracted"},{"source":"fn:srp/RenderingTrigger","target":"renderer:TranslationNotesRenderer","kind":"calls","labels":["renders with"],"evidence":["repos/srp/ScriptureRenderingPipelineWorker/RenderingTrigger.cs:306"],"origin":"extracted"},{"source":"fn:srp/RenderingTrigger","target":"renderer:TranslationQuestionsRenderer","kind":"calls","labels":["renders with"],"evidence":["repos/srp/ScriptureRenderingPipelineWorker/RenderingTrigger.cs:310"],"origin":"extracted"},{"source":"fn:srp/RenderingTrigger","target":"renderer:TranslationWordsRenderer","kind":"calls","labels":["renders with"],"evidence":["repos/srp/ScriptureRenderingPipelineWorker/RenderingTrigger.cs:314"],"origin":"extracted"},{"source":"fn:srp/RenderingTrigger","target":"svc:wacs","kind":"calls","labels":["downloads repo zip"],"evidence":["Gitea__localhost__BaseUrl=http://wacs:3000 in compose/srp.yaml; credentials keyed by the html_url host"],"origin":"curated"},{"source":"fn:srp/RenderingTrigger","target":"topic:reporendered","kind":"publishes","labels":[],"evidence":["repos/srp/ScriptureRenderingPipelineWorker/RenderingTrigger.cs:56"],"origin":"extracted"},{"source":"fn:srp/RepoAnalysisTrigger","target":"topic:repoanalysisresult","kind":"publishes","labels":[],"evidence":["repos/srp/ScriptureRenderingPipelineWorker/RepoAnalysisTrigger.cs:46"],"origin":"extracted"},{"source":"fn:srp/Webhook","target":"topic:wacsevent","kind":"publishes","labels":[],"evidence":["repos/srp/ScriptureRenderingPipeline/Webhook.cs:112"],"origin":"extracted"},{"source":"make:build","target":"file:compose.yaml","kind":"runs","labels":["docker compose build"],"evidence":[],"origin":"extracted"},{"source":"make:build","target":"make:prepare","kind":"runs","labels":["first"],"evidence":[],"origin":"extracted"},{"source":"make:bump","target":"file:.gitmodules","kind":"runs","labels":["git submodule"],"evidence":[],"origin":"extracted"},{"source":"make:down","target":"file:compose.yaml","kind":"runs","labels":["docker compose down"],"evidence":[],"origin":"extracted"},{"source":"make:import","target":"script:tools/cli/fdb","kind":"runs","labels":[],"evidence":[],"origin":"extracted"},{"source":"make:init","target":"file:.gitmodules","kind":"runs","labels":["git submodule"],"evidence":[],"origin":"extracted"},{"source":"make:logs","target":"file:compose.yaml","kind":"runs","labels":["docker compose logs"],"evidence":[],"origin":"extracted"},{"source":"make:nuke","target":"file:compose.yaml","kind":"runs","labels":["docker compose down"],"evidence":[],"origin":"extracted"},{"source":"make:ps","target":"file:compose.yaml","kind":"runs","labels":["docker compose ps"],"evidence":[],"origin":"extracted"},{"source":"make:put","target":"script:tools/cli/fdb","kind":"runs","labels":[],"evidence":[],"origin":"extracted"},{"source":"make:repos","target":"script:tools/cli/fdb","kind":"runs","labels":[],"evidence":[],"origin":"extracted"},{"source":"make:reset","target":"make:nuke","kind":"runs","labels":["step 1"],"evidence":[],"origin":"extracted"},{"source":"make:reset","target":"make:seed","kind":"runs","labels":["step 3"],"evidence":[],"origin":"extracted"},{"source":"make:reset","target":"make:smoke","kind":"runs","labels":["step 4"],"evidence":[],"origin":"extracted"},{"source":"make:reset","target":"make:up","kind":"runs","labels":["step 2"],"evidence":[],"origin":"extracted"},{"source":"make:seed","target":"script:seed/seed.sh","kind":"runs","labels":[],"evidence":[],"origin":"extracted"},{"source":"make:smoke","target":"script:scripts/smoke.sh","kind":"runs","labels":[],"evidence":[],"origin":"extracted"},{"source":"make:status","target":"script:tools/cli/fdb","kind":"runs","labels":[],"evidence":[],"origin":"extracted"},{"source":"make:test-tools","target":"script:tools/test.sh","kind":"runs","labels":[],"evidence":[],"origin":"extracted"},{"source":"make:up","target":"file:compose.yaml","kind":"runs","labels":["docker compose up"],"evidence":[],"origin":"extracted"},{"source":"make:up","target":"make:prepare","kind":"runs","labels":["first"],"evidence":[],"origin":"extracted"},{"source":"py:fdb.cli","target":"py:fdb.clients","kind":"imports","labels":["HTTPError"],"evidence":["tools/fdb/cli.py:10"],"origin":"extracted"},{"source":"py:fdb.cli","target":"py:fdb.config","kind":"imports","labels":["Config, NotLocalError"],"evidence":["tools/fdb/cli.py:11"],"origin":"extracted"},{"source":"py:fdb.cli","target":"py:fdb.core","kind":"imports","labels":[],"evidence":["tools/fdb/cli.py:9"],"origin":"extracted"},{"source":"py:fdb.clients","target":"blob:$web","kind":"calls","labels":["reads build_log.json"],"evidence":["tools/fdb/clients.py: Blob.get_json, used by core._status_once for the render stage"],"origin":"curated"},{"source":"py:fdb.clients","target":"svc:lapi-hasura","kind":"calls","labels":["GraphQL rendered_content"],"evidence":["tools/fdb/clients.py: Hasura.query, used by core._status_once for the languageapi stage"],"origin":"curated"},{"source":"py:fdb.clients","target":"svc:wacs","kind":"calls","labels":["Gitea REST + git push"],"evidence":["tools/fdb/clients.py: Gitea and git(); pushes are refused unless the host is local (config.assert_local_wacs)"],"origin":"curated"},{"source":"py:fdb.core","target":"py:fdb.clients","kind":"imports","labels":["Blob, Gitea, Hasura, basic_auth, git"],"evidence":["tools/fdb/core.py:10"],"origin":"extracted"},{"source":"py:fdb.core","target":"py:fdb.config","kind":"imports","labels":["Config, assert_local_wacs"],"evidence":["tools/fdb/core.py:11"],"origin":"extracted"},{"source":"py:fdb.server","target":"py:fdb.clients","kind":"imports","labels":["HTTPError"],"evidence":["tools/fdb/server.py:20"],"origin":"extracted"},{"source":"py:fdb.server","target":"py:fdb.config","kind":"imports","labels":["Config, NotLocalError"],"evidence":["tools/fdb/server.py:21"],"origin":"extracted"},{"source":"py:fdb.server","target":"py:fdb.core","kind":"imports","labels":[],"evidence":["tools/fdb/server.py:19"],"origin":"extracted"},{"source":"rest:hasura/consolidated-repos","target":"table:vw_consolidated_repos","kind":"reads_writes","labels":["reads"],"evidence":["repos/languageapi/hasura/metadata/rest_endpoints.yaml"],"origin":"extracted"},{"source":"rest:hasura/langnames","target":"table:vw_langnames","kind":"reads_writes","labels":["reads"],"evidence":["repos/languageapi/hasura/metadata/rest_endpoints.yaml"],"origin":"extracted"},{"source":"route:lapi/content","target":"table:content","kind":"reads_writes","labels":[],"evidence":["repos/languageapi/controller/src/routes/content.ts"],"origin":"extracted"},{"source":"route:lapi/content","target":"table:git_repo","kind":"reads_writes","labels":[],"evidence":["repos/languageapi/controller/src/routes/content.ts"],"origin":"extracted"},{"source":"route:lapi/content","target":"table:wa_content_metadata","kind":"reads_writes","labels":[],"evidence":["repos/languageapi/controller/src/routes/content.ts"],"origin":"extracted"},{"source":"route:lapi/country","target":"table:country","kind":"reads_writes","labels":[],"evidence":["repos/languageapi/controller/src/routes/country.ts"],"origin":"extracted"},{"source":"route:lapi/country","target":"table:world_region","kind":"reads_writes","labels":[],"evidence":["repos/languageapi/controller/src/routes/country.ts"],"origin":"extracted"},{"source":"route:lapi/git","target":"table:git_repo","kind":"reads_writes","labels":[],"evidence":["repos/languageapi/controller/src/routes/git.ts"],"origin":"extracted"},{"source":"route:lapi/language","target":"table:language","kind":"reads_writes","labels":[],"evidence":["repos/languageapi/controller/src/routes/language.ts"],"origin":"extracted"},{"source":"route:lapi/language","target":"table:language_alternate_name","kind":"reads_writes","labels":[],"evidence":["repos/languageapi/controller/src/routes/language.ts"],"origin":"extracted"},{"source":"route:lapi/language","target":"table:wa_language_metadata","kind":"reads_writes","labels":[],"evidence":["repos/languageapi/controller/src/routes/language.ts"],"origin":"extracted"},{"source":"route:lapi/region","target":"table:world_region","kind":"reads_writes","labels":[],"evidence":["repos/languageapi/controller/src/routes/region.ts"],"origin":"extracted"},{"source":"route:lapi/rendering","target":"table:nonscriptural_rendering_metadata","kind":"reads_writes","labels":[],"evidence":["repos/languageapi/controller/src/routes/rendering.ts"],"origin":"extracted"},{"source":"route:lapi/rendering","target":"table:rendered_content","kind":"reads_writes","labels":[],"evidence":["repos/languageapi/controller/src/routes/rendering.ts"],"origin":"extracted"},{"source":"route:lapi/rendering","target":"table:scriptural_rendering_metadata","kind":"reads_writes","labels":[],"evidence":["repos/languageapi/controller/src/routes/rendering.ts"],"origin":"extracted"},{"source":"script:scripts/lib.sh","target":"svc:wacs","kind":"calls","labels":[],"evidence":["scripts/lib.sh:29","scripts/lib.sh:44"],"origin":"extracted"},{"source":"script:scripts/smoke.sh","target":"script:scripts/lib.sh","kind":"calls","labels":["source"],"evidence":["scripts/smoke.sh:10"],"origin":"extracted"},{"source":"script:scripts/smoke.sh","target":"svc:azurite","kind":"calls","labels":[],"evidence":["scripts/smoke.sh:57"],"origin":"extracted"},{"source":"script:scripts/smoke.sh","target":"svc:lapi-controller","kind":"calls","labels":[],"evidence":["scripts/smoke.sh:39"],"origin":"extracted"},{"source":"script:scripts/smoke.sh","target":"svc:lapi-hasura","kind":"calls","labels":[],"evidence":["scripts/smoke.sh:34"],"origin":"extracted"},{"source":"script:scripts/smoke.sh","target":"svc:servicebus","kind":"calls","labels":[],"evidence":["scripts/smoke.sh:41"],"origin":"extracted"},{"source":"script:scripts/smoke.sh","target":"svc:srp-webhook","kind":"calls","labels":[],"evidence":["scripts/smoke.sh:40"],"origin":"extracted"},{"source":"script:scripts/smoke.sh","target":"svc:wacs","kind":"calls","labels":[],"evidence":["scripts/smoke.sh:37","scripts/smoke.sh:48"],"origin":"extracted"},{"source":"script:seed/seed.sh","target":"blob:$web","kind":"calls","labels":["creates container"],"evidence":["seed/seed.sh"],"origin":"extracted"},{"source":"script:seed/seed.sh","target":"blob:template","kind":"calls","labels":["creates container"],"evidence":["seed/seed.sh"],"origin":"extracted"},{"source":"script:seed/seed.sh","target":"blob:versecounts","kind":"calls","labels":["creates container"],"evidence":["seed/seed.sh"],"origin":"extracted"},{"source":"script:seed/seed.sh","target":"file:seed/fixtures","kind":"calls","labels":["reads"],"evidence":[],"origin":"extracted"},{"source":"script:seed/seed.sh","target":"file:seed/languageapi","kind":"calls","labels":["reads"],"evidence":[],"origin":"extracted"},{"source":"script:seed/seed.sh","target":"file:seed/sql/wacs-token-trigger.sql","kind":"calls","labels":["applies to wacs-db"],"evidence":[],"origin":"extracted"},{"source":"script:seed/seed.sh","target":"file:seed/templates","kind":"calls","labels":["reads"],"evidence":[],"origin":"extracted"},{"source":"script:seed/seed.sh","target":"script:scripts/lib.sh","kind":"calls","labels":["source"],"evidence":["seed/seed.sh:11"],"origin":"extracted"},{"source":"script:seed/seed.sh","target":"svc:lapi-controller","kind":"calls","labels":[],"evidence":["seed/seed.sh:44"],"origin":"extracted"},{"source":"script:seed/seed.sh","target":"svc:tools","kind":"calls","labels":["docker compose exec/run"],"evidence":["seed/seed.sh:34"],"origin":"extracted"},{"source":"script:seed/seed.sh","target":"svc:wacs","kind":"calls","labels":["docker compose exec/run"],"evidence":["seed/seed.sh:14","seed/seed.sh:59","seed/seed.sh:23"],"origin":"extracted"},{"source":"script:seed/seed.sh","target":"svc:wacs-db","kind":"calls","labels":["docker compose exec/run"],"evidence":["seed/seed.sh:20"],"origin":"extracted"},{"source":"script:tools/cli/fdb","target":"py:fdb.cli","kind":"calls","labels":["main()"],"evidence":["tools/cli/fdb"],"origin":"extracted"},{"source":"script:tools/test.sh","target":"script:scripts/lib.sh","kind":"calls","labels":["source"],"evidence":["tools/test.sh:11"],"origin":"extracted"},{"source":"script:tools/test.sh","target":"script:tools/cli/fdb","kind":"calls","labels":[],"evidence":["tools/test.sh:34"],"origin":"extracted"},{"source":"script:tools/test.sh","target":"svc:azurite","kind":"calls","labels":[],"evidence":["tools/test.sh:47"],"origin":"extracted"},{"source":"script:tools/test.sh","target":"svc:fdb-api","kind":"calls","labels":[],"evidence":["tools/test.sh:51"],"origin":"extracted"},{"source":"sub:audiobiel/languageapi","target":"fn:lapi/waAudioRenderings","kind":"triggers","labels":[],"evidence":["repos/languageapi/controller/src/functions/audio-renderings-bus.ts:240"],"origin":"extracted"},{"source":"sub:mergedresult/NotificationHandler","target":"svc:VerseReportingProcessor","kind":"triggers","labels":[],"evidence":["repos/srp/VerseReportingProcessor/MergeCompletedNotificationService.cs:22"],"origin":"extracted"},{"source":"sub:mergerequest/MergeRequest","target":"fn:srp/MergeTrigger","kind":"triggers","labels":[],"evidence":["repos/srp/ScriptureRenderingPipelineWorker/MergeHandler.cs:46"],"origin":"extracted"},{"source":"sub:repoanalysisresult/WebhookDispatcher","target":"fn:srp/WebhookDispatcherRepoAnalysisResultTrigger","kind":"triggers","labels":[],"evidence":["repos/srp/ScriptureRenderingPipelineWorker/WebhookDispatcherTrigger.cs:69"],"origin":"extracted"},{"source":"sub:reporendered/reporendered-languageapi","target":"fn:lapi/waLangApiRenderings","kind":"triggers","labels":[],"evidence":["repos/languageapi/controller/src/functions/renderings-bus.ts:266"],"origin":"extracted"},{"source":"sub:versecountingresult/InternalProcessor","target":"svc:VerseReportingProcessor","kind":"triggers","labels":[],"evidence":["repos/srp/VerseReportingProcessor/VerseCounterService.cs:28"],"origin":"extracted"},{"source":"sub:wacsevent/InternalProcessor","target":"svc:VerseReportingProcessor","kind":"triggers","labels":[],"evidence":["repos/srp/VerseReportingProcessor/VerseCounterService.cs:28"],"origin":"extracted"},{"source":"sub:wacsevent/RenderingWebhook","target":"fn:srp/RenderingTrigger","kind":"triggers","labels":[],"evidence":["repos/srp/ScriptureRenderingPipelineWorker/RenderingTrigger.cs:44"],"origin":"extracted"},{"source":"sub:wacsevent/RepoAnalysis","target":"fn:srp/RepoAnalysisTrigger","kind":"triggers","labels":[],"evidence":["repos/srp/ScriptureRenderingPipelineWorker/RepoAnalysisTrigger.cs:31"],"origin":"extracted"},{"source":"sub:wacsevent/VerseCounting","target":"fn:srp/ProgressReporting","kind":"triggers","labels":[],"evidence":["repos/srp/ScriptureRenderingPipelineWorker/ProgressReporting.cs:29"],"origin":"extracted"},{"source":"sub:wacsevent/WebhookDispatcher","target":"fn:srp/WebhookDispatcherWACSMessageTrigger","kind":"triggers","labels":[],"evidence":["repos/srp/ScriptureRenderingPipelineWorker/WebhookDispatcherTrigger.cs:27"],"origin":"extracted"},{"source":"sub:wacsevent/languageapi","target":"fn:lapi/waLangApiGitTopics","kind":"triggers","labels":[],"evidence":["repos/languageapi/controller/src/functions/bus-wacsevent-gitTopics.ts:128"],"origin":"extracted"},{"source":"svc:azurite","target":"vol:azurite_data","kind":"stores","labels":["/data"],"evidence":[],"origin":"extracted"},{"source":"svc:fdb-api","target":"blob:$web","kind":"uses","labels":[],"evidence":["FDB_BLOB_URL=http://azurite:10000/devstoreaccount1/$web"],"origin":"extracted"},{"source":"svc:fdb-api","target":"ep:fdb/GET /healthz","kind":"exposes","labels":["HTTP"],"evidence":[],"origin":"extracted"},{"source":"svc:fdb-api","target":"ep:fdb/GET /repos","kind":"exposes","labels":["HTTP"],"evidence":[],"origin":"extracted"},{"source":"svc:fdb-api","target":"ep:fdb/GET /repos/{owner}/{repo}/pipeline","kind":"exposes","labels":["HTTP"],"evidence":[],"origin":"extracted"},{"source":"svc:fdb-api","target":"ep:fdb/POST /import","kind":"exposes","labels":["HTTP"],"evidence":[],"origin":"extracted"},{"source":"svc:fdb-api","target":"ep:fdb/PUT /repos/{owner}/{repo}/contents/{path}","kind":"exposes","labels":["HTTP"],"evidence":[],"origin":"extracted"},{"source":"svc:fdb-api","target":"file:tools","kind":"mounts","labels":["/app/tools"],"evidence":[],"origin":"extracted"},{"source":"svc:fdb-api","target":"file:tools/http/Dockerfile","kind":"built_by","labels":[],"evidence":[],"origin":"extracted"},{"source":"svc:fdb-api","target":"py:fdb.server","kind":"calls","labels":["python -m fdb.server"],"evidence":["tools/http/Dockerfile"],"origin":"extracted"},{"source":"svc:fdb-api","target":"svc:azurite","kind":"depends_on","labels":["healthy"],"evidence":["compose/tools.yaml: depends_on"],"origin":"extracted"},{"source":"svc:fdb-api","target":"svc:azurite","kind":"uses","labels":[],"evidence":["FDB_BLOB_URL=http://azurite:10000/devstoreaccount1/$web"],"origin":"extracted"},{"source":"svc:fdb-api","target":"svc:lapi-hasura","kind":"depends_on","labels":["healthy"],"evidence":["compose/tools.yaml: depends_on"],"origin":"extracted"},{"source":"svc:fdb-api","target":"svc:lapi-hasura","kind":"uses","labels":[],"evidence":["FDB_HASURA_URL=http://lapi-hasura:8080"],"origin":"extracted"},{"source":"svc:fdb-api","target":"svc:wacs","kind":"depends_on","labels":["healthy"],"evidence":["compose/tools.yaml: depends_on"],"origin":"extracted"},{"source":"svc:fdb-api","target":"svc:wacs","kind":"uses","labels":[],"evidence":["FDB_WACS_URL=http://wacs:3000"],"origin":"extracted"},{"source":"svc:fdb-api","target":"vol:fdb_imports","kind":"stores","labels":["/data/imports"],"evidence":[],"origin":"extracted"},{"source":"svc:lapi-controller","target":"file:docker/languageapi/controller.Dockerfile","kind":"built_by","labels":[],"evidence":[],"origin":"extracted"},{"source":"svc:lapi-controller","target":"svc:azurite","kind":"depends_on","labels":["healthy"],"evidence":["compose/languageapi.yaml: depends_on"],"origin":"extracted"},{"source":"svc:lapi-controller","target":"svc:azurite","kind":"uses","labels":[],"evidence":["AzureWebJobsStorage=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq"],"origin":"extracted"},{"source":"svc:lapi-controller","target":"svc:lapi-migrate","kind":"depends_on","labels":["completed successfully"],"evidence":["compose/languageapi.yaml: depends_on"],"origin":"extracted"},{"source":"svc:lapi-controller","target":"svc:lapi-postgres","kind":"uses","labels":[],"evidence":["DATABASE_URL=postgres://docker:docker@lapi-postgres:5432/docker"],"origin":"extracted"},{"source":"svc:lapi-controller","target":"svc:sb-health","kind":"depends_on","labels":["healthy"],"evidence":["compose/languageapi.yaml: depends_on"],"origin":"extracted"},{"source":"svc:lapi-controller","target":"svc:servicebus","kind":"uses","labels":[],"evidence":["BUS_CONN=Endpoint=sb://servicebus;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmula"],"origin":"extracted"},{"source":"svc:lapi-controller","target":"svc:wacs","kind":"uses","labels":[],"evidence":["WACS_API_URL=http://wacs:3000/api/v1"],"origin":"extracted"},{"source":"svc:lapi-hasura","target":"file:repos/languageapi/hasura/metadata","kind":"mounts","labels":["/hasura-metadata"],"evidence":[],"origin":"extracted"},{"source":"svc:lapi-hasura","target":"rest:hasura/consolidated-repos","kind":"exposes","labels":["REST"],"evidence":[],"origin":"extracted"},{"source":"svc:lapi-hasura","target":"rest:hasura/langnames","kind":"exposes","labels":["REST"],"evidence":[],"origin":"extracted"},{"source":"svc:lapi-hasura","target":"svc:lapi-migrate","kind":"depends_on","labels":["completed successfully"],"evidence":["compose/languageapi.yaml: depends_on"],"origin":"extracted"},{"source":"svc:lapi-hasura","target":"svc:lapi-postgres","kind":"uses","labels":[],"evidence":["HASURA_GRAPHQL_METADATA_DATABASE_URL=postgres://docker:docker@lapi-postgres:5432/docker","PG_DATABASE_URL=postgres://docker:docker@lapi-postgres:5432/docker"],"origin":"extracted"},{"source":"svc:lapi-hasura","target":"table:content","kind":"exposes","labels":["GraphQL"],"evidence":["repos/languageapi/hasura/metadata/databases/languageapi/tables/public_content.yaml"],"origin":"extracted"},{"source":"svc:lapi-hasura","target":"table:country","kind":"exposes","labels":["GraphQL"],"evidence":["repos/languageapi/hasura/metadata/databases/languageapi/tables/public_country.yaml"],"origin":"extracted"},{"source":"svc:lapi-hasura","target":"table:country_to_language","kind":"exposes","labels":["GraphQL"],"evidence":["repos/languageapi/hasura/metadata/databases/languageapi/tables/public_country_to_language.yaml"],"origin":"extracted"},{"source":"svc:lapi-hasura","target":"table:gateway_language_to_dependent_language","kind":"exposes","labels":["GraphQL"],"evidence":["repos/languageapi/hasura/metadata/databases/languageapi/tables/public_gateway_language_to_dependent_language.yaml"],"origin":"extracted"},{"source":"svc:lapi-hasura","target":"table:git_repo","kind":"exposes","labels":["GraphQL"],"evidence":["repos/languageapi/hasura/metadata/databases/languageapi/tables/public_git_repo.yaml"],"origin":"extracted"},{"source":"svc:lapi-hasura","target":"table:git_topic","kind":"exposes","labels":["GraphQL"],"evidence":["repos/languageapi/hasura/metadata/databases/languageapi/tables/public_git_topic.yaml"],"origin":"extracted"},{"source":"svc:lapi-hasura","target":"table:language","kind":"exposes","labels":["GraphQL"],"evidence":["repos/languageapi/hasura/metadata/databases/languageapi/tables/public_language.yaml"],"origin":"extracted"},{"source":"svc:lapi-hasura","target":"table:language_alternate_name","kind":"exposes","labels":["GraphQL"],"evidence":["repos/languageapi/hasura/metadata/databases/languageapi/tables/public_language_alternate_name.yaml"],"origin":"extracted"},{"source":"svc:lapi-hasura","target":"table:localization","kind":"exposes","labels":["GraphQL"],"evidence":["repos/languageapi/hasura/metadata/databases/languageapi/tables/public_localization.yaml"],"origin":"extracted"},{"source":"svc:lapi-hasura","target":"table:nonscriptural_rendering_metadata","kind":"exposes","labels":["GraphQL"],"evidence":["repos/languageapi/hasura/metadata/databases/languageapi/tables/public_nonscriptural_rendering_metadata.yaml"],"origin":"extracted"},{"source":"svc:lapi-hasura","target":"table:rendered_content","kind":"exposes","labels":["GraphQL"],"evidence":["repos/languageapi/hasura/metadata/databases/languageapi/tables/public_rendered_content.yaml"],"origin":"extracted"},{"source":"svc:lapi-hasura","target":"table:repo_topic","kind":"exposes","labels":["GraphQL"],"evidence":["repos/languageapi/hasura/metadata/databases/languageapi/tables/public_repo_topic.yaml"],"origin":"extracted"},{"source":"svc:lapi-hasura","target":"table:scriptural_rendering_metadata","kind":"exposes","labels":["GraphQL"],"evidence":["repos/languageapi/hasura/metadata/databases/languageapi/tables/public_scriptural_rendering_metadata.yaml"],"origin":"extracted"},{"source":"svc:lapi-hasura","target":"table:source_zips","kind":"exposes","labels":["GraphQL"],"evidence":["repos/languageapi/hasura/metadata/databases/languageapi/tables/public_source_zips.yaml"],"origin":"extracted"},{"source":"svc:lapi-hasura","target":"table:vw_consolidated_repos","kind":"exposes","labels":["GraphQL"],"evidence":["repos/languageapi/hasura/metadata/databases/languageapi/tables/public_vw_consolidated_repos.yaml"],"origin":"extracted"},{"source":"svc:lapi-hasura","target":"table:vw_langnames","kind":"exposes","labels":["GraphQL"],"evidence":["repos/languageapi/hasura/metadata/databases/languageapi/tables/public_vw_langnames.yaml"],"origin":"extracted"},{"source":"svc:lapi-hasura","target":"table:wa_content_metadata","kind":"exposes","labels":["GraphQL"],"evidence":["repos/languageapi/hasura/metadata/databases/languageapi/tables/public_wa_content_metadata.yaml"],"origin":"extracted"},{"source":"svc:lapi-hasura","target":"table:wa_language_metadata","kind":"exposes","labels":["GraphQL"],"evidence":["repos/languageapi/hasura/metadata/databases/languageapi/tables/public_wa_language_metadata.yaml"],"origin":"extracted"},{"source":"svc:lapi-hasura","target":"table:world_region","kind":"exposes","labels":["GraphQL"],"evidence":["repos/languageapi/hasura/metadata/databases/languageapi/tables/public_world_region.yaml"],"origin":"extracted"},{"source":"svc:lapi-migrate","target":"file:docker/languageapi/controller.Dockerfile","kind":"built_by","labels":[],"evidence":[],"origin":"extracted"},{"source":"svc:lapi-migrate","target":"svc:lapi-postgres","kind":"depends_on","labels":["healthy"],"evidence":["compose/languageapi.yaml: depends_on"],"origin":"extracted"},{"source":"svc:lapi-migrate","target":"svc:lapi-postgres","kind":"uses","labels":[],"evidence":["DATABASE_URL=postgres://docker:docker@lapi-postgres:5432/docker"],"origin":"extracted"},{"source":"svc:lapi-migrate","target":"table:content","kind":"calls","labels":["applies drizzle/*.sql"],"evidence":["docker/languageapi/controller.Dockerfile target migrate; every table is created this way"],"origin":"curated"},{"source":"svc:lapi-postgres","target":"vol:lapi_pgdata","kind":"stores","labels":["/var/lib/postgresql/data"],"evidence":[],"origin":"extracted"},{"source":"svc:sb-health","target":"svc:servicebus","kind":"depends_on","labels":["started"],"evidence":["compose/infra.yaml: depends_on"],"origin":"extracted"},{"source":"svc:servicebus","target":"file:config/servicebus/Config.json","kind":"mounts","labels":["/ServiceBus_Emulator/ConfigFiles/Config.json"],"evidence":[],"origin":"extracted"},{"source":"svc:servicebus","target":"svc:sb-sql","kind":"depends_on","labels":["healthy"],"evidence":["compose/infra.yaml: depends_on"],"origin":"extracted"},{"source":"svc:srp-webhook","target":"file:docker/srp/functions.Dockerfile","kind":"built_by","labels":["ScriptureRenderingPipeline"],"evidence":[],"origin":"extracted"},{"source":"svc:srp-webhook","target":"svc:azurite","kind":"depends_on","labels":["healthy"],"evidence":["compose/srp.yaml: depends_on"],"origin":"extracted"},{"source":"svc:srp-webhook","target":"svc:azurite","kind":"uses","labels":[],"evidence":["AzureWebJobsStorage=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq","WebhookStorageConnectionString=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq"],"origin":"extracted"},{"source":"svc:srp-webhook","target":"svc:sb-health","kind":"depends_on","labels":["healthy"],"evidence":["compose/srp.yaml: depends_on"],"origin":"extracted"},{"source":"svc:srp-webhook","target":"svc:servicebus","kind":"uses","labels":[],"evidence":["ServiceBusConnectionString=Endpoint=sb://servicebus;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmula"],"origin":"extracted"},{"source":"svc:srp-worker","target":"blob:$web","kind":"uses","labels":[],"evidence":["ScripturePipelineStorageOutputContainer=$web","ScriptureRenderingPipelineBaseUrl=http://localhost:10000/devstoreaccount1/$web/"],"origin":"extracted"},{"source":"svc:srp-worker","target":"blob:template","kind":"uses","labels":[],"evidence":["ScripturePipelineStorageTemplateContainer=template"],"origin":"extracted"},{"source":"svc:srp-worker","target":"file:docker/srp/functions.Dockerfile","kind":"built_by","labels":["ScriptureRenderingPipelineWorker"],"evidence":[],"origin":"extracted"},{"source":"svc:srp-worker","target":"svc:azurite","kind":"depends_on","labels":["healthy"],"evidence":["compose/srp.yaml: depends_on"],"origin":"extracted"},{"source":"svc:srp-worker","target":"svc:azurite","kind":"uses","labels":[],"evidence":["AzureWebJobsStorage=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq","ScripturePipelineStorageConnectionString=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq","WebhookStorageConnectionString=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq"],"origin":"extracted"},{"source":"svc:srp-worker","target":"svc:sb-health","kind":"depends_on","labels":["healthy"],"evidence":["compose/srp.yaml: depends_on"],"origin":"extracted"},{"source":"svc:srp-worker","target":"svc:servicebus","kind":"uses","labels":[],"evidence":["ServiceBusConnectionString=Endpoint=sb://servicebus;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmula"],"origin":"extracted"},{"source":"svc:srp-worker","target":"svc:wacs","kind":"uses","labels":[],"evidence":["GiteaBaseAddress=http://wacs:3000","Gitea__localhost__BaseUrl=http://wacs:3000"],"origin":"extracted"},{"source":"svc:tools","target":"file:seed","kind":"mounts","labels":["/seed"],"evidence":[],"origin":"extracted"},{"source":"svc:tools","target":"svc:azurite","kind":"depends_on","labels":["healthy"],"evidence":["compose/infra.yaml: depends_on"],"origin":"extracted"},{"source":"svc:tools","target":"svc:azurite","kind":"uses","labels":[],"evidence":["AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq"],"origin":"extracted"},{"source":"svc:wacs","target":"blob:$web","kind":"uses","labels":[],"evidence":["READER_BASE_LINK=http://localhost:10000/devstoreaccount1/$web/u/"],"origin":"extracted"},{"source":"svc:wacs","target":"file:config/wacs.env","kind":"mounts","labels":["env_file"],"evidence":[],"origin":"extracted"},{"source":"svc:wacs","target":"file:repos/wacs/.env","kind":"mounts","labels":["env_file"],"evidence":[],"origin":"extracted"},{"source":"svc:wacs","target":"file:repos/wacs/wacs-gitea/Dockerfile","kind":"built_by","labels":[],"evidence":[],"origin":"extracted"},{"source":"svc:wacs","target":"fn:srp/Webhook","kind":"calls","labels":["system webhook (push, create, repository)"],"evidence":["seed/seed.sh registers a Gitea system hook to SRP_HOOK_URL=http://srp-webhook/webhook (scripts/lib.sh)"],"origin":"curated"},{"source":"svc:wacs","target":"svc:wacs-db","kind":"depends_on","labels":["healthy"],"evidence":["compose/wacs.yaml: depends_on"],"origin":"extracted"},{"source":"svc:wacs","target":"svc:wacs-redis","kind":"depends_on","labels":["healthy"],"evidence":["compose/wacs.yaml: depends_on"],"origin":"extracted"},{"source":"svc:wacs","target":"vol:wacs_config","kind":"stores","labels":["/etc/gitea"],"evidence":[],"origin":"extracted"},{"source":"svc:wacs","target":"vol:wacs_data","kind":"stores","labels":["/var/lib/gitea"],"evidence":[],"origin":"extracted"},{"source":"svc:wacs-db","target":"vol:wacs_db_data","kind":"stores","labels":["/var/lib/mysql"],"evidence":[],"origin":"extracted"},{"source":"table:content","target":"table:language","kind":"fk","labels":["foreign key"],"evidence":["repos/languageapi/controller/src/db/schema/schema.ts"],"origin":"extracted"},{"source":"table:country","target":"table:world_region","kind":"fk","labels":["foreign key"],"evidence":["repos/languageapi/controller/src/db/schema/schema.ts"],"origin":"extracted"},{"source":"table:country_to_language","target":"table:country","kind":"fk","labels":["foreign key"],"evidence":["repos/languageapi/controller/src/db/schema/schema.ts"],"origin":"extracted"},{"source":"table:country_to_language","target":"table:language","kind":"fk","labels":["foreign key"],"evidence":["repos/languageapi/controller/src/db/schema/schema.ts"],"origin":"extracted"},{"source":"table:gateway_language_to_dependent_language","target":"table:language","kind":"fk","labels":["foreign key"],"evidence":["repos/languageapi/controller/src/db/schema/schema.ts"],"origin":"extracted"},{"source":"table:git_repo","target":"table:content","kind":"fk","labels":["foreign key"],"evidence":["repos/languageapi/controller/src/db/schema/schema.ts"],"origin":"extracted"},{"source":"table:language","target":"table:country","kind":"fk","labels":["foreign key"],"evidence":["repos/languageapi/controller/src/db/schema/schema.ts"],"origin":"extracted"},{"source":"table:language_alternate_name","target":"table:language","kind":"fk","labels":["foreign key"],"evidence":["repos/languageapi/controller/src/db/schema/schema.ts"],"origin":"extracted"},{"source":"table:localization","target":"table:language","kind":"fk","labels":["foreign key"],"evidence":["repos/languageapi/controller/src/db/schema/schema.ts"],"origin":"extracted"},{"source":"table:rendered_content","target":"table:content","kind":"fk","labels":["foreign key"],"evidence":["repos/languageapi/controller/src/db/schema/schema.ts"],"origin":"extracted"},{"source":"table:repo_topic","target":"table:git_repo","kind":"fk","labels":["foreign key"],"evidence":["repos/languageapi/controller/src/db/schema/schema.ts"],"origin":"extracted"},{"source":"table:repo_topic","target":"table:git_topic","kind":"fk","labels":["foreign key"],"evidence":["repos/languageapi/controller/src/db/schema/schema.ts"],"origin":"extracted"},{"source":"table:wa_content_metadata","target":"table:content","kind":"fk","labels":["foreign key"],"evidence":["repos/languageapi/controller/src/db/schema/schema.ts"],"origin":"extracted"},{"source":"topic:audiobiel","target":"sub:audiobiel/languageapi","kind":"delivers","labels":[],"evidence":[],"origin":"extracted"},{"source":"topic:mergedresult","target":"sub:mergedresult/NotificationHandler","kind":"delivers","labels":[],"evidence":[],"origin":"extracted"},{"source":"topic:mergerequest","target":"sub:mergerequest/MergeRequest","kind":"delivers","labels":[],"evidence":[],"origin":"extracted"},{"source":"topic:repoanalysisresult","target":"sub:repoanalysisresult/WebhookDispatcher","kind":"delivers","labels":[],"evidence":[],"origin":"extracted"},{"source":"topic:reporendered","target":"sub:reporendered/reporendered-languageapi","kind":"delivers","labels":[],"evidence":[],"origin":"extracted"},{"source":"topic:versecountingresult","target":"sub:versecountingresult/InternalProcessor","kind":"delivers","labels":["user.success=true"],"evidence":[],"origin":"extracted"},{"source":"topic:wacsevent","target":"sub:wacsevent/InternalProcessor","kind":"delivers","labels":["Action='deleted' and EventType='repository'"],"evidence":[],"origin":"extracted"},{"source":"topic:wacsevent","target":"sub:wacsevent/RenderingWebhook","kind":"delivers","labels":["eventType='push' or eventType='fork' or eventType='create'"],"evidence":[],"origin":"extracted"},{"source":"topic:wacsevent","target":"sub:wacsevent/RepoAnalysis","kind":"delivers","labels":[],"evidence":[],"origin":"extracted"},{"source":"topic:wacsevent","target":"sub:wacsevent/VerseCounting","kind":"delivers","labels":["eventType='push' or eventType='fork' or eventType='create'"],"evidence":[],"origin":"extracted"},{"source":"topic:wacsevent","target":"sub:wacsevent/WebhookDispatcher","kind":"delivers","labels":[],"evidence":[],"origin":"extracted"},{"source":"topic:wacsevent","target":"sub:wacsevent/languageapi","kind":"delivers","labels":[],"evidence":[],"origin":"extracted"}],"tours":[{"id":"commit","title":"A commit's journey","intro":"What happens between `git push` and the change showing up in the public API. This is the flow the whole repo exists to reproduce, and what `make smoke` and `fdb status` check.","steps":[{"title":"A translator pushes to WACS.","text":"WACS is Gitea. Locally the push comes from you, `make smoke`, or `fdb put`, which all commit through the Gitea API. That counts as a push like any other.","nodes":["svc:wacs","script:scripts/smoke.sh","py:fdb.core"]},{"title":"Gitea calls SRP's webhook.","text":"`make seed` registers a system webhook, so every repo's push, create and repository events go to http://srp-webhook/webhook. The webhook function checks the repo's host and builds a WACSMessage. A brand-new repo fires both `create` and `push`, so it renders twice.","nodes":["svc:wacs","fn:srp/Webhook","svc:srp-webhook"],"focus":"fn:srp/Webhook"},{"title":"One message, many subscribers.","text":"The message goes to the WACSEvent topic. Service Bus copies it to every subscription whose filter matches: rendering and verse counting only take push/fork/create, while analysis, the webhook dispatcher and languageapi take everything. The routing is all in config/servicebus/Config.json.","nodes":["fn:srp/Webhook","topic:wacsevent","sub:wacsevent/RenderingWebhook","sub:wacsevent/VerseCounting","sub:wacsevent/RepoAnalysis","sub:wacsevent/WebhookDispatcher","sub:wacsevent/languageapi","sub:wacsevent/InternalProcessor"],"focus":"topic:wacsevent"},{"title":"The worker renders.","text":"RenderingTrigger downloads the repo zip from WACS, picks a renderer from the manifest's resource type (Bible, notes, words, questions...), and writes the pages, index.json and build_log.json to $web/u/<owner>/<repo>/.","nodes":["sub:wacsevent/RenderingWebhook","fn:srp/RenderingTrigger","svc:wacs","renderer:BibleRenderer","blob:$web","blob:template"],"focus":"fn:srp/RenderingTrigger"},{"title":"SRP announces RepoRendered.","text":"Win or lose, the worker publishes a RenderingResultMessage with a Success property. Anyone can subscribe; locally the only subscriber is languageapi.","nodes":["fn:srp/RenderingTrigger","topic:reporendered","sub:reporendered/reporendered-languageapi"],"focus":"topic:reporendered"},{"title":"languageapi records it.","text":"The controller's waLangApiRenderings function upserts git_repo, content and one rendered_content row per file, reusing the same handlers as the REST routes. Meanwhile waLangApiGitTopics has synced the repo's topics from its own WACSEvent subscription.","nodes":["fn:lapi/waLangApiRenderings","route:lapi/rendering","route:lapi/content","route:lapi/git","table:rendered_content","table:content","table:git_repo","fn:lapi/waLangApiGitTopics"]},{"title":"Hasura serves it.","text":"Hasura exposes the tables read-only over GraphQL. The smoke test and `fdb status` both query rendered_content here to prove the change made it all the way through.","nodes":["svc:lapi-hasura","table:rendered_content","py:fdb.clients","script:scripts/smoke.sh"]}]},{"id":"startup","title":"Bringing the stack up","intro":"What `make reset` actually does, and why services start in the order they do.","steps":[{"title":"make reset = nuke, up, seed, smoke.","text":"Each step is its own target, so you can rerun any of them alone. `make nuke` drops every named volume; `make down` keeps them.","nodes":["make:reset","make:nuke","make:up","make:seed","make:smoke"]},{"title":"Infrastructure first.","text":"Azurite and the Service Bus emulator (on SQL Server) start first. The emulator image has no shell, so sb-health probes it and the Functions apps wait on sb-health.","nodes":["svc:azurite","svc:sb-sql","svc:servicebus","svc:sb-health","file:config/servicebus/Config.json"]},{"title":"Databases and migrations.","text":"MariaDB and Valkey come up for WACS. Postgres for languageapi gets the Drizzle migrations from the one-shot lapi-migrate job, and Hasura and the controller only start once it has completed successfully.","nodes":["svc:wacs-db","svc:wacs-redis","svc:lapi-postgres","svc:lapi-migrate","svc:lapi-hasura","svc:lapi-controller"]},{"title":"Apps built from the submodules.","text":"WACS, both SRP apps and the languageapi controller are built from the pinned code in repos/. Where an upstream Dockerfile doesn't work, the umbrella's own Dockerfile in docker/ replaces it. Nothing in the submodules is modified.","nodes":["svc:wacs","svc:srp-webhook","svc:srp-worker","file:docker/srp/functions.Dockerfile","file:docker/languageapi/controller.Dockerfile","file:repos/wacs/wacs-gitea/Dockerfile"]},{"title":"Seed wires the systems together.","text":"The seed creates the admin user, installs the token trigger, registers the WACS → SRP webhook, creates the blob containers, posts reference data to languageapi, and creates the demo repo. That repo's first commit is the first trip through the pipeline.","nodes":["script:seed/seed.sh","svc:wacs","svc:wacs-db","svc:tools","blob:$web","blob:template","svc:lapi-controller","file:seed/fixtures"]},{"title":"Smoke proves it.","text":"Health checks for every service, then a real commit followed until it appears in Hasura. If this passes, the stack works.","nodes":["script:scripts/smoke.sh","script:scripts/lib.sh","svc:lapi-hasura","blob:$web"]}],"edge_kinds":["depends_on","runs","calls","uses","built_by","mounts"]},{"id":"fdb","title":"Testing with real repos (fdb)","intro":"How the fdb CLI and HTTP API import, edit and follow a repo, and which systems they touch.","steps":[{"title":"Two front ends, one core.","text":"`tools/cli/fdb` runs on your machine; fdb-api runs the same package in a container on :7080. Both call fdb.core, so every operation returns the same dict.","nodes":["script:tools/cli/fdb","py:fdb.cli","svc:fdb-api","py:fdb.server","py:fdb.core"]},{"title":"Import.","text":"Clones the source repo, creates it in the local WACS and pushes. The push fires the webhook, so the import renders like any other push. Pushing anywhere other than the local WACS is refused.","nodes":["ep:fdb/POST /import","py:fdb.core","py:fdb.config","py:fdb.clients","svc:wacs"],"focus":"ep:fdb/POST /import"},{"title":"Put.","text":"Replaces one file in one commit through the Gitea contents API, just like a real push.","nodes":["ep:fdb/PUT /repos/{owner}/{repo}/contents/{path}","py:fdb.core","svc:wacs"]},{"title":"Status.","text":"Checks three stages for a commit: it's in WACS, $web's build_log.json names it (render), and Hasura's rendered_content was updated after that render ended (languageapi).","nodes":["ep:fdb/GET /repos/{owner}/{repo}/pipeline","py:fdb.clients","svc:wacs","blob:$web","svc:lapi-hasura","table:rendered_content"]}]}]};
+
+(() => {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+  const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+  const store = {
+    get(k) { try { return localStorage.getItem("archgraph:" + k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem("archgraph:" + k, v); } catch { /* private mode */ } },
+  };
+
+  // ------------------------------------------------------------------ data
+  const nodes = GRAPH.nodes;
+  const edges = GRAPH.edges;
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const systems = nodes.filter((n) => n.kind === "system");
+  const KINDS = GRAPH.node_kinds;
+  const EKINDS = GRAPH.edge_kinds;
+  const out = new Map(), inc = new Map();
+  edges.forEach((e, i) => {
+    e.i = i;
+    (out.get(e.source) || out.set(e.source, []).get(e.source)).push(e);
+    (inc.get(e.target) || inc.set(e.target, []).get(e.target)).push(e);
+  });
+  const hasChildren = new Set(nodes.map((n) => n.parent).filter(Boolean));
+
+  const SYS_COLORS = {
+    light: {wacs: "#2f6fdb", srp: "#c2410c", languageapi: "#15803d", infra: "#7c3aed", fdb: "#0e7490", umbrella: "#57534e"},
+    dark:  {wacs: "#6c9cf0", srp: "#f0844a", languageapi: "#4fbf72", infra: "#a78bfa", fdb: "#2fb3c9", umbrella: "#a8a29e"},
+  };
+  const SHAPES = {
+    system: "round-rectangle", service: "round-rectangle", function: "ellipse", endpoint: "tag", topic: "diamond",
+    subscription: "triangle", table: "barrel", blob: "octagon", volume: "barrel", module: "hexagon",
+    file: "rectangle", script: "pentagon", make: "cut-rectangle",
+  };
+  const SIZES = {service: 30, function: 18, endpoint: 16, topic: 26, subscription: 15, table: 18, blob: 22, volume: 14,
+                 module: 17, file: 15, script: 20, make: 20};
+  const FLOW = new Set(Object.entries(EKINDS).filter(([, v]) => v.flow).map(([k]) => k));
+
+  // Views pick which node and edge kinds are on.
+  const ALL_KINDS = Object.keys(KINDS);
+  const ALL_EKINDS = Object.keys(EKINDS);
+  const VIEWS = [
+    {id: "overview", label: "Overview", kinds: ["system", "service", "topic", "blob"], hideSystems: ["umbrella"],
+     ekinds: ["publishes", "delivers", "triggers", "calls", "uses"]},
+    {id: "flow", label: "Message flow", kinds: ["system", "service", "function", "topic", "subscription", "blob", "module"],
+     hideSystems: ["umbrella"], ekinds: ["publishes", "delivers", "triggers", "calls"]},
+    {id: "data", label: "Data", kinds: ["system", "service", "function", "endpoint", "table"], hideSystems: ["umbrella", "fdb"],
+     ekinds: ["reads_writes", "fk", "exposes", "calls"]},
+    {id: "workflow", label: "Dev workflow", kinds: ["system", "service", "make", "script", "file", "volume", "blob"],
+     ekinds: ["runs", "calls", "mounts", "built_by", "stores"]},
+    {id: "all", label: "Everything", kinds: ALL_KINDS, ekinds: ALL_EKINDS.filter((k) => k !== "depends_on")},
+  ];
+
+  const state = {
+    view: "overview",
+    kinds: new Set(), ekinds: new Set(), systems: new Set(systems.map((s) => s.system)),
+    inactive: true, edgeLabels: false,
+    selected: null, focus: null, path: null, tour: null, step: 0, tourSet: null,
+  };
+
+  // ------------------------------------------------------------------ theme
+  const themeName = () => {
+    const forced = document.documentElement.dataset.theme;
+    if (forced) return forced;
+    return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  };
+  const savedTheme = store.get("theme");
+  if (savedTheme) document.documentElement.dataset.theme = savedTheme;
+  const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const sysColor = (sys) => SYS_COLORS[themeName()][sys] || "#888";
+
+  // ------------------------------------------------------------------ chrome
+  $("title").textContent = GRAPH.meta.title;
+  document.title = GRAPH.meta.title;
+  $("stats").textContent = `${GRAPH.meta.counts.nodes} nodes · ${GRAPH.meta.counts.edges} relationships`;
+  $("pins").innerHTML = GRAPH.meta.submodules.map((s) =>
+    `<div><code>${esc(s.path)}</code> @ <a href="${esc(s.url)}/tree/${esc(s.sha)}" target="_blank" rel="noopener">${esc((s.sha || "").slice(0, 8))}</a></div>`).join("");
+
+  const shapeSvg = (kind, color) => {
+    const c = esc(color);
+    const p = {
+      ellipse: `<circle cx="7" cy="7" r="6" fill="${c}"/>`,
+      diamond: `<path d="M7 1 13 7 7 13 1 7Z" fill="${c}"/>`,
+      triangle: `<path d="M7 2 13 12H1Z" fill="${c}"/>`,
+      barrel: `<rect x="2" y="1.5" width="10" height="11" rx="4" ry="2" fill="${c}"/>`,
+      hexagon: `<path d="M4 1.5h6L13 7l-3 5.5H4L1 7Z" fill="${c}"/>`,
+      rectangle: `<rect x="2" y="2" width="10" height="10" fill="${c}"/>`,
+      pentagon: `<path d="M7 1.5 13 6l-2.3 6.5H3.3L1 6Z" fill="${c}"/>`,
+      "cut-rectangle": `<path d="M3.5 2h7L12.5 4v6L10.5 12h-7L1.5 10V4Z" fill="${c}"/>`,
+      octagon: `<path d="M4.5 1.5h5l3 3v5l-3 3h-5l-3-3v-5Z" fill="${c}"/>`,
+      tag: `<path d="M1.5 3h7.5l3.5 4-3.5 4H1.5Z" fill="${c}"/>`,
+    }[SHAPES[kind]] || `<rect x="1.5" y="2.5" width="11" height="9" rx="2.5" fill="${kind === "system" ? "none" : c}" stroke="${c}" stroke-width="1.5"/>`;
+    return `<span class="sw"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">${p}</svg></span>`;
+  };
+
+  function renderFilters() {
+    const cnt = (pred) => nodes.filter(pred).length;
+    $("views").innerHTML = VIEWS.map((v) => `<button data-view="${v.id}" aria-pressed="${state.view === v.id}">${esc(v.label)}</button>`).join("");
+    $("sysFilters").innerHTML = systems.map((s) => `
+      <label title="${esc(s.desc || "")}"><input type="checkbox" data-sys="${esc(s.system)}" ${state.systems.has(s.system) ? "checked" : ""}>
+      <span class="sw"><svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" rx="3" fill="${sysColor(s.system)}"/></svg></span>
+      ${esc(s.label)}<span class="n">${cnt((n) => n.system === s.system && n.kind !== "system")}</span></label>`).join("");
+    const muted = css("--muted") || "#888";
+    $("kindFilters").innerHTML = ALL_KINDS.filter((k) => k !== "system").map((k) => `
+      <label title="${esc(KINDS[k].desc)}"><input type="checkbox" data-kind="${k}" ${state.kinds.has(k) ? "checked" : ""}>
+      ${shapeSvg(k, muted)} ${esc(KINDS[k].label)}<span class="n">${cnt((n) => n.kind === k)}</span></label>`).join("");
+    $("edgeFilters").innerHTML = ALL_EKINDS.map((k) => `
+      <label title="${esc(EKINDS[k].desc)}"><input type="checkbox" data-ekind="${k}" ${state.ekinds.has(k) ? "checked" : ""}>
+      <span class="sw"><svg width="14" height="14" viewBox="0 0 14 14"><line x1="1" y1="7" x2="13" y2="7" stroke="${edgeColor(k)}" stroke-width="2" ${edgeDash(k) ? 'stroke-dasharray="3 2"' : ""}/></svg></span>
+      ${esc(EKINDS[k].label)}<span class="n">${edges.filter((e) => e.kind === k).length}</span></label>`).join("");
+    $("tours").innerHTML = GRAPH.tours.map((t) => `<button class="tour-btn" data-tour="${esc(t.id)}"><strong>${esc(t.title)}</strong><span>${t.steps.length} steps</span></button>`).join("");
+  }
+
+  function edgeColor(kind) {
+    const dark = themeName() === "dark";
+    if (["publishes", "delivers", "triggers"].includes(kind)) return dark ? "#c4b5fd" : "#6d28d9";
+    if (kind === "calls" || kind === "runs") return dark ? "#7aa7ff" : "#2563eb";
+    if (kind === "reads_writes" || kind === "exposes") return dark ? "#6ee7a0" : "#15803d";
+    if (kind === "fk") return dark ? "#86efac" : "#4d7c0f";
+    return dark ? "#6b6b66" : "#a8a69f";
+  }
+  const edgeDash = (kind) => ["depends_on", "fk", "mounts", "built_by", "stores", "imports"].includes(kind);
+
+  // ------------------------------------------------------------------ visibility + edge lifting
+  function nodePasses(n) {
+    if (!state.systems.has(n.system)) return false;
+    if (!state.kinds.has(n.kind)) return false;
+    if (!state.inactive && (n.attrs.inactive || (n.parent && byId.get(n.parent)?.attrs.inactive))) return false;
+    return true;
+  }
+  function withAncestors(ids) {
+    const keep = new Set(ids);
+    for (const id of [...keep]) {
+      let p = byId.get(id)?.parent;
+      while (p) { keep.add(p); p = byId.get(p)?.parent; }
+    }
+    return keep;
+  }
+  function visibleSet() {
+    if (state.tourSet) return withAncestors(state.tourSet);
+    const vis = new Set(nodes.filter(nodePasses).map((n) => n.id));
+    if (state.focus) {
+      const keep = new Set([state.focus]);
+      for (const e of [...(out.get(state.focus) || []), ...(inc.get(state.focus) || [])]) {
+        if (state.ekinds.has(e.kind)) { keep.add(e.source); keep.add(e.target); }
+      }
+      // Children of the focused node stay, ancestors stay so boxes still make sense.
+      for (const n of nodes) if (n.parent === state.focus) keep.add(n.id);
+      for (const id of [...keep]) {
+        let p = byId.get(id)?.parent;
+        while (p) { keep.add(p); p = byId.get(p)?.parent; }
+      }
+      for (const id of keep) {
+        const n = byId.get(id);
+        if (n && state.systems.has(n.system)) vis.add(id);
+      }
+      for (const id of [...vis]) if (!keep.has(id)) vis.delete(id);
+    }
+    return vis;
+  }
+  const visibleAncestor = (id, vis) => {
+    let n = byId.get(id);
+    while (n && !vis.has(n.id)) n = n.parent ? byId.get(n.parent) : null;
+    return n ? n.id : null;
+  };
+  const isAncestor = (a, b) => {
+    let n = byId.get(b);
+    while (n && n.parent) { if (n.parent === a) return true; n = byId.get(n.parent); }
+    return false;
+  };
+
+  function buildElements(vis) {
+    const els = [];
+    for (const n of nodes) {
+      if (!vis.has(n.id)) continue;
+      const parent = n.parent ? visibleAncestor(n.parent, vis) : null;
+      const cls = [n.kind];
+      if (n.attrs.inactive) cls.push("inactive");
+      if (n.attrs.known_gap) cls.push("gap");
+      els.push({group: "nodes", data: {
+        id: n.id, label: n.label, parent: parent || undefined, color: sysColor(n.system),
+        shape: SHAPES[n.kind] || "round-rectangle", size: SIZES[n.kind] || 18,
+      }, classes: cls.join(" ")});
+    }
+    const lifted = new Map();
+    for (const e of edges) {
+      if (!state.ekinds.has(e.kind)) continue;
+      const a = visibleAncestor(e.source, vis), b = visibleAncestor(e.target, vis);
+      if (!a || !b || a === b || isAncestor(a, b) || isAncestor(b, a)) continue;
+      const key = `${a}|${b}|${e.kind}`;
+      const l = lifted.get(key) || {a, b, kind: e.kind, members: [], direct: false};
+      l.members.push(e.i);
+      if (a === e.source && b === e.target) l.direct = true;
+      lifted.set(key, l);
+    }
+    for (const [key, l] of lifted) {
+      const first = edges[l.members[0]];
+      let label = l.members.length > 1 ? `${EKINDS[l.kind].label} ×${l.members.length}`
+        : (first.labels[0] || EKINDS[l.kind].label);
+      if (l.kind === "delivers" && l.members.length === 1) label = first.labels.length ? "filtered" : "all messages";
+      if (label.length > 36) label = label.slice(0, 34) + "…";
+      els.push({group: "edges", data: {
+        id: key, source: l.a, target: l.b, kind: l.kind, label, color: edgeColor(l.kind), members: l.members,
+      }, classes: [l.kind, edgeDash(l.kind) ? "dashed" : "", FLOW.has(l.kind) ? "flow" : "", l.direct ? "" : "lifted"].join(" ")});
+    }
+    return els;
+  }
+
+  // ------------------------------------------------------------------ cytoscape
+  if (typeof cytoscape !== "function") {
+    $("fallback").style.display = "grid";
+    renderFilters();
+    return;
+  }
+  let hasFcose = false;
+  try { if (typeof cytoscapeFcose === "function") { cytoscape.use(cytoscapeFcose); hasFcose = true; } } catch { hasFcose = false; }
+
+  function stylesheet() {
+    const text = css("--text"), muted = css("--muted"), panel = css("--panel"), bg = css("--bg"), accent = css("--accent"), warn = css("--warn");
+    const fade = parseFloat(css("--fade")) || .12;
+    return [
+      {selector: "node", style: {
+        "background-color": "data(color)", shape: "data(shape)", width: "data(size)", height: "data(size)",
+        label: "data(label)", color: text, "font-size": 11, "text-valign": "bottom", "text-margin-y": 3,
+        "text-wrap": "ellipsis", "text-max-width": 140, "text-background-color": bg, "text-background-opacity": .7,
+        "text-background-padding": 1, "border-width": 0, "min-zoomed-font-size": 7,
+      }},
+      {selector: "node.service", style: {"font-size": 13, "font-weight": 600}},
+      {selector: "node.topic", style: {"font-size": 11, "font-weight": 600}},
+      {selector: "node.volume, node.file", style: {"background-opacity": .55}},
+      {selector: "node.make", style: {"font-weight": 600}},
+      {selector: ":parent", style: {
+        "background-color": "data(color)", "background-opacity": .06, "border-width": 1.5, "border-color": "data(color)",
+        "border-opacity": .7, "text-valign": "top", "text-halign": "center", "text-margin-y": -4, "font-size": 12,
+        "font-weight": 600, color: "data(color)", "text-background-opacity": 0, shape: "round-rectangle", padding: 14,
+        "text-wrap": "none", "text-max-width": 1000,
+      }},
+      {selector: "node.system", style: {
+        "background-opacity": .035, "border-width": 2, "border-style": "solid", "font-size": 15, "font-weight": 700, padding: 22,
+        "text-transform": "uppercase", "text-margin-y": -6,
+      }},
+      {selector: "node.system:childless", style: {width: 60, height: 40, "background-opacity": .15, "text-valign": "center", "text-margin-y": 0}},
+      {selector: "node.inactive", style: {"background-color": muted, "border-style": "dashed", "border-width": 1.5, "border-color": "data(color)", opacity: .7}},
+      {selector: "node.inactive:parent", style: {"background-color": "data(color)"}},
+      {selector: "node.gap", style: {"border-width": 2.5, "border-color": warn, "border-style": "dotted"}},
+      {selector: "edge", style: {
+        width: 1.4, "line-color": "data(color)", "target-arrow-color": "data(color)", "target-arrow-shape": "triangle",
+        "arrow-scale": .8, "curve-style": "bezier", opacity: .75, "font-size": 9, color: muted,
+        "text-background-color": panel, "text-background-opacity": .9, "text-background-padding": 2, "text-rotation": "autorotate",
+      }},
+      {selector: "edge.flow", style: {width: 2, opacity: .9}},
+      {selector: "edge.dashed", style: {"line-style": "dashed", "line-dash-pattern": [5, 3]}},
+      {selector: "edge.depends_on", style: {"line-style": "dotted", width: 1, opacity: .6}},
+      {selector: "edge.lifted", style: {"line-opacity": .85}},
+      {selector: "edge.show-label", style: {label: "data(label)"}},
+      {selector: ".faded", style: {opacity: fade, "text-opacity": fade}},
+      {selector: ":parent.faded", style: {opacity: Math.min(1, fade * 3)}},
+      {selector: "node.hl", style: {"border-width": 3, "border-color": accent, "border-style": "solid", opacity: 1, "text-opacity": 1, "z-index": 10}},
+      {selector: "node.sel", style: {"border-width": 4, "border-color": accent, "border-style": "solid", "font-weight": 700, "z-index": 11}},
+      {selector: "edge.hl", style: {opacity: 1, width: 3, label: "data(label)", "z-index": 10, color: text}},
+      {selector: "node:active", style: {"overlay-opacity": .08}},
+    ];
+  }
+
+  const cy = cytoscape({
+    container: $("cy"), elements: [], style: stylesheet(), minZoom: .1, maxZoom: 3,
+    boxSelectionEnabled: false, autoungrabify: false,
+  });
+
+  // Seeded RNG while laying out, so the same view always gets the same picture.
+  function seeded(fn) {
+    let a = 1337;
+    const rnd = Math.random;
+    Math.random = () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+    try { return fn(); } finally { Math.random = rnd; }
+  }
+  function layout(fit = true) {
+    const n = cy.nodes().length;
+    const opts = hasFcose ? {
+      name: "fcose", quality: "proof", randomize: true, animate: false, fit, padding: 40,
+      nodeRepulsion: () => 9000, idealEdgeLength: (e) => (e.hasClass("flow") ? 90 : 70), edgeElasticity: () => .35,
+      nestingFactor: .08, gravity: .3, gravityCompound: 1.2, gravityRangeCompound: 1.4, numIter: 3000,
+      tile: true, tilingPaddingVertical: 16, tilingPaddingHorizontal: 16, packComponents: true, nodeSeparation: 70,
+      uniformNodeDimensions: false, nodeDimensionsIncludeLabels: true,
+    } : {name: "cose", animate: false, fit, padding: 40, nodeRepulsion: () => 12000, idealEdgeLength: () => 80, randomize: true, numIter: 2000};
+    if (!n) return;
+    seeded(() => cy.layout(opts).run());
+  }
+
+  function rebuild({fit = true, relayout = true} = {}) {
+    const vis = visibleSet();
+    cy.batch(() => {
+      cy.elements().remove();
+      cy.add(buildElements(vis));
+    });
+    cy.edges().toggleClass("show-label", state.edgeLabels);
+    if (relayout) layout(fit);
+    applyHighlight();
+    renderBanner();
+  }
+
+  // ------------------------------------------------------------------ highlight
+  function clearHl() { cy.elements().removeClass("faded hl sel"); }
+  function highlight(ids, {edgesBetween = true, extraEdges = null} = {}) {
+    clearHl();
+    const set = new Set(ids);
+    const keep = cy.collection();
+    for (const id of set) {
+      const el = cy.getElementById(id);
+      if (el.nonempty()) keep.merge(el);
+    }
+    let eds = cy.collection();
+    if (extraEdges) eds = extraEdges;
+    else if (edgesBetween) eds = keep.edgesWith(keep);
+    cy.elements().addClass("faded");
+    keep.removeClass("faded").addClass("hl");
+    keep.ancestors().removeClass("faded");
+    eds.removeClass("faded").addClass("hl");
+    return keep;
+  }
+  function applyHighlight() {
+    if (state.tour) return showStep(false);
+    if (state.path) return showPath(false);
+    if (!state.selected) { clearHl(); return; }
+    const el = cy.getElementById(state.selected);
+    if (el.empty()) { clearHl(); return; }
+    const nb = el.closedNeighborhood();
+    clearHl();
+    cy.elements().addClass("faded");
+    nb.removeClass("faded");
+    nb.nodes().ancestors().removeClass("faded");
+    el.descendants().removeClass("faded");
+    el.descendants().edgesWith(cy.nodes()).removeClass("faded");
+    nb.edges().addClass("hl");
+    el.removeClass("faded").addClass("sel");
+  }
+
+  // ------------------------------------------------------------------ details panel
+  const attrLabels = {
+    trigger: "Trigger", methods: "Methods", route: "Route", topic: "Topic", subscription: "Subscription", filter: "Filter",
+    schedule: "Schedule", image: "Image", ports: "Ports (host:container)", profiles: "Profiles", command: "Command",
+    project: "Project", build_context: "Build context", source_dir: "Source", mount: "Mounted at", recipe: "Recipe",
+    drizzle_export: "Drizzle export", query: "Query", view: "View",
+  };
+  function relLabel(e, dir) {
+    const k = EKINDS[e.kind]?.label || e.kind;
+    return dir === "out" ? k : ({
+      publishes: "published by", delivers: "fed by", triggers: "triggered by", calls: "called by", uses: "used by",
+      reads_writes: "read/written by", exposes: "exposed by", fk: "referenced by", depends_on: "needed by",
+      stores: "data of", mounts: "mounted by", built_by: "builds", imports: "imported by", runs: "run by",
+    }[e.kind] || k);
+  }
+  function showDetails(id) {
+    const n = byId.get(id);
+    const panel = $("details");
+    if (!n) { panel.classList.remove("open"); return; }
+    const sys = byId.get("sys:" + n.system);
+    const parent = n.parent && n.parent !== "sys:" + n.system ? byId.get(n.parent) : null;
+    const chips = [
+      `<span class="chip">${shapeSvg(n.kind, sysColor(n.system))}${esc(KINDS[n.kind]?.label || n.kind)}</span>`,
+      sys && n.kind !== "system" ? `<span class="chip"><span class="dot" style="background:${sysColor(n.system)}"></span>${esc(sys.label)}</span>` : "",
+      parent ? `<span class="chip">in <button class="linklike" data-goto="${esc(parent.id)}" style="border:0;background:none;padding:0;color:var(--accent);cursor:pointer">${esc(parent.label)}</button></span>` : "",
+      n.attrs.inactive ? `<span class="chip warn">production only, not run locally</span>` : "",
+      n.attrs.known_gap ? `<span class="chip warn">known gap</span>` : "",
+    ].join("");
+    const attrs = Object.entries(n.attrs).filter(([k]) => attrLabels[k]).map(([k, v]) => {
+      const val = Array.isArray(v) ? (k === "recipe" ? v.map((x) => `<code>${esc(x)}</code>`).join("<br>") : v.map(esc).join(", ")) : esc(v === true ? "yes" : v);
+      return `<dt>${esc(attrLabels[k])}</dt><dd class="${k === "recipe" ? "" : "mono"}">${val}</dd>`;
+    }).join("");
+    const group = (list, dir) => {
+      const rows = list.map((e) => {
+        const other = byId.get(dir === "out" ? e.target : e.source);
+        const shown = cy.getElementById(other.id).nonempty();
+        const lab = e.labels.length ? `<span class="lab">${esc(e.labels.join("; "))}</span>` : "";
+        const ev = e.evidence.length ? `<span class="ev" title="${esc((e.origin === "curated" ? "curated: " : "") + e.evidence.join("\n"))}">${e.origin === "curated" ? "curated" : "why?"}</span>` : "";
+        return `<li><span class="rel">${esc(relLabel(e, dir))}</span> <button class="${shown ? "" : "hidden-node"}" data-goto="${esc(other.id)}" title="${esc(other.id)}">${esc(other.label)}</button>${lab}${ev}</li>`;
+      });
+      return rows.join("");
+    };
+    const outs = (out.get(id) || []).slice().sort((a, b) => a.kind.localeCompare(b.kind));
+    const ins = (inc.get(id) || []).slice().sort((a, b) => a.kind.localeCompare(b.kind));
+    const kids = nodes.filter((c) => c.parent === id);
+    panel.innerHTML = `
+      <div class="d-top"><h2>${esc(n.label)}</h2><button id="dClose" aria-label="Close details">×</button></div>
+      <div class="chips">${chips}</div>
+      ${n.desc ? `<p>${md(n.desc)}</p>` : ""}
+      ${n.desc_auto ? `<p class="hint">Summarised from the code. Better words welcome in <code>tools/graph/knowledge.json</code>.</p>` : ""}
+      ${(n.notes || []).map((t) => `<div class="note">${md(t)}</div>`).join("")}
+      ${n.links ? `<h3>Open</h3><div class="links">${n.links.map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)} ↗</a>`).join("")}</div>` : ""}
+      ${n.tips ? `<h3>Tips</h3><ul class="tips">${n.tips.map((t) => `<li>${md(t)}</li>`).join("")}</ul>` : ""}
+      ${attrs ? `<h3>Facts</h3><dl class="kv">${attrs}</dl>` : ""}
+      ${n.sources.length ? `<h3>Source</h3><div class="links">${n.sources.map((s) => `<a href="${esc(s.url)}" target="_blank" rel="noopener" class="mono">${esc(s.path)}${s.line > 1 ? ":" + s.line : ""}</a>`).join("")}</div>` : ""}
+      ${outs.length ? `<h3>Outgoing (${outs.length})</h3><ul class="conn">${group(outs, "out")}</ul>` : ""}
+      ${ins.length ? `<h3>Incoming (${ins.length})</h3><ul class="conn">${group(ins, "in")}</ul>` : ""}
+      ${kids.length ? `<h3>Contains (${kids.length})</h3><ul class="conn">${kids.map((c) => `<li><span class="rel">${esc(KINDS[c.kind]?.label || c.kind)}</span> <button data-goto="${esc(c.id)}">${esc(c.label)}</button></li>`).join("")}</ul>` : ""}
+      <p class="hint" style="margin-top:14px">Double-click the node to focus on it. Shift-click another node to see the path.</p>`;
+    panel.classList.add("open");
+    panel.scrollTop = 0;
+    $("dClose").onclick = () => select(null);
+  }
+  $("details").addEventListener("click", (ev) => {
+    const b = ev.target.closest("[data-goto]");
+    if (b) goTo(b.dataset.goto);
+  });
+
+  // ------------------------------------------------------------------ actions
+  function setView(id, {keepSelection = true} = {}) {
+    const v = VIEWS.find((x) => x.id === id) || VIEWS[0];
+    state.view = v.id;
+    state.kinds = new Set(v.kinds);
+    state.ekinds = new Set(v.ekinds);
+    state.systems = new Set(systems.map((x) => x.system).filter((x) => !(v.hideSystems || []).includes(x)));
+    state.tourSet = null;
+    if (!keepSelection) state.selected = null;
+    state.focus = null; state.path = null;
+    renderFilters();
+    rebuild();
+    if (state.selected) { applyHighlight(); }
+    syncHash();
+  }
+  function select(id, {center = false} = {}) {
+    state.selected = id; state.path = null;
+    if (id) showDetails(id); else $("details").classList.remove("open");
+    applyHighlight();
+    if (id && center) {
+      const el = cy.getElementById(id);
+      if (el.nonempty()) frame(el.closedNeighborhood().nodes().not(":parent").union(el), 0, 1.6);
+    }
+    syncHash();
+  }
+  function ensureVisible(id) {
+    if (state.tourSet && !state.tour) state.tourSet = null;
+    if (cy.getElementById(id).nonempty()) return;
+    const n = byId.get(id);
+    if (!n) return;
+    state.systems.add(n.system);
+    if (!state.inactive && n.attrs.inactive) state.inactive = true;
+    // Prefer a preset view that already shows this kind; otherwise just switch the kind on.
+    const v = VIEWS.find((x) => x.kinds.includes(n.kind) && x.id !== "all");
+    if (v && state.view !== v.id && !state.kinds.has(n.kind)) { setView(v.id); }
+    else { state.kinds.add(n.kind); state.focus = null; renderFilters(); rebuild(); }
+  }
+  function goTo(id) {
+    ensureVisible(id);
+    select(id, {center: true});
+  }
+  function focusOn(id) {
+    state.focus = id; state.selected = id; state.path = null;
+    rebuild();
+    showDetails(id);
+    syncHash();
+  }
+  function renderBanner() {
+    const b = $("banner");
+    if (state.focus) {
+      $("bannerText").textContent = `Focused on ${byId.get(state.focus)?.label} and its direct connections`;
+      b.classList.add("open");
+    } else if (state.path) {
+      const p = state.path;
+      $("bannerText").textContent = p.ids.length ? `Path: ${p.ids.map((i) => byId.get(i)?.label).join(" → ")}`
+        : `No path between ${byId.get(p.from)?.label} and ${byId.get(p.to)?.label} in this view`;
+      b.classList.add("open");
+    } else b.classList.remove("open");
+  }
+  $("bannerClose").onclick = () => resetAll();
+  function resetAll() {
+    const hadFocus = !!state.focus;
+    state.focus = null; state.path = null;
+    if (state.tour) endTour();
+    if (hadFocus) rebuild(); else { applyHighlight(); renderBanner(); }
+    select(null);
+  }
+
+  function showPath(recompute = true, from, to) {
+    if (recompute) {
+      const a = cy.getElementById(from), b = cy.getElementById(to);
+      // Undirected over the visible graph (compound edges included), so "how are these related" always has an answer.
+      const res = cy.elements().not(":parent").union(cy.edges()).aStar({root: a, goal: b, directed: false});
+      state.path = {from, to, ids: res.found ? res.path.nodes().map((n) => n.id()) : [], edges: res.found ? res.path.edges().map((e) => e.id()) : []};
+    }
+    const p = state.path;
+    if (!p) return;
+    const eds = cy.collection(p.edges.map((id) => cy.getElementById(id)));
+    const keep = highlight(p.ids.length ? p.ids : [p.from, p.to], {extraEdges: eds});
+    eds.addClass("hl");
+    renderBanner();
+    if (recompute && keep.nonempty()) frame(keep);
+  }
+
+  // ------------------------------------------------------------------ tours
+  function startTour(id, step = 0) {
+    const t = GRAPH.tours.find((x) => x.id === id);
+    if (!t) return;
+    state.tour = t; state.step = step; state.focus = null; state.path = null; state.selected = null;
+    // The tour gets its own small graph: just the nodes it talks about (plus their boxes).
+    state.tourSet = new Set(t.steps.flatMap((s) => s.nodes));
+    state.ekinds = new Set(t.edge_kinds || ALL_EKINDS.filter((k) => k !== "depends_on"));
+    state.view = "tour";
+    // Mirror the tour's contents in the sidebar so the checkboxes tell the truth.
+    state.kinds = new Set([...state.tourSet].map((i) => byId.get(i).kind).concat("system"));
+    state.systems = new Set([...state.tourSet].map((i) => byId.get(i).system));
+    renderFilters();
+    rebuild();
+    $("tour").classList.add("open");
+    $("side").classList.remove("open");
+    showStep(true);
+  }
+  function showStep(move = true) {
+    const t = state.tour;
+    if (!t) return;
+    const s = t.steps[state.step];
+    $("tourName").textContent = t.title;
+    $("tourCount").textContent = `· step ${state.step + 1} of ${t.steps.length}`;
+    $("tourTitle").textContent = s.title;
+    $("tourText").innerHTML = md(s.text);
+    $("tourPrev").disabled = state.step === 0;
+    $("tourNext").textContent = state.step === t.steps.length - 1 ? "Finish" : "Next →";
+    $("tourDots").innerHTML = t.steps.map((_, i) => `<i class="${i === state.step ? "on" : ""}"></i>`).join("");
+    const keep = highlight(s.nodes);
+    showDetails(s.focus || s.nodes[0]);
+    if (move && keep.nonempty()) frame(keep, $("tour").offsetHeight + 24);
+    syncHash();
+  }
+  // Fit `eles` into the canvas area above `bottomInset` px, without zooming in too far.
+  function frame(eles, bottomInset = 0, maxZoom = 1.3) {
+    cy.resize(); // the details panel may have just opened and narrowed the canvas
+    const bb = eles.boundingBox({includeLabels: true});
+    const pad = 50, W = cy.width(), H = Math.max(200, cy.height() - bottomInset);
+    const z = Math.max(cy.minZoom(), Math.min(maxZoom, (W - 2 * pad) / Math.max(bb.w, 1), (H - 2 * pad) / Math.max(bb.h, 1)));
+    cy.animate({zoom: z, pan: {x: W / 2 - z * (bb.x1 + bb.w / 2), y: H / 2 - z * (bb.y1 + bb.h / 2)}}, {duration: 450});
+  }
+  function endTour({restore = true} = {}) {
+    state.tour = null;
+    $("tour").classList.remove("open");
+    if (restore) setView("overview", {keepSelection: false});
+    else { state.tourSet = null; clearHl(); }
+    syncHash();
+  }
+  $("tourPrev").onclick = () => { if (state.step > 0) { state.step--; showStep(); } };
+  $("tourNext").onclick = () => {
+    if (state.step < state.tour.steps.length - 1) { state.step++; showStep(); }
+    else endTour();
+  };
+  $("tourClose").onclick = () => endTour();
+
+  // ------------------------------------------------------------------ search
+  const results = $("results");
+  let hits = [], hitIdx = 0;
+  function search(q) {
+    q = q.trim().toLowerCase();
+    if (!q) return [];
+    const score = (n) => {
+      const l = n.label.toLowerCase(), id = n.id.toLowerCase();
+      if (l === q) return 0;
+      if (l.startsWith(q)) return 1;
+      if (l.includes(q)) return 2;
+      if (id.includes(q)) return 3;
+      if ((n.desc || "").toLowerCase().includes(q)) return 4;
+      if (n.sources.some((s) => s.path.toLowerCase().includes(q))) return 5;
+      return 9;
+    };
+    return nodes.map((n) => [score(n), n]).filter(([s]) => s < 9).sort((a, b) => a[0] - b[0] || a[1].label.localeCompare(b[1].label)).slice(0, 14).map(([, n]) => n);
+  }
+  function renderResults() {
+    results.innerHTML = hits.length ? hits.map((n, i) => `<button role="option" aria-selected="${i === hitIdx}" data-id="${esc(n.id)}">
+      ${shapeSvg(n.kind, sysColor(n.system))}<span>${esc(n.label)}</span><span class="r-kind">${esc(KINDS[n.kind]?.label || n.kind)} · ${esc(byId.get("sys:" + n.system)?.label || "")}</span></button>`).join("")
+      : `<div style="padding:8px 10px;color:var(--muted)">No matches</div>`;
+    results.classList.add("open");
+  }
+  $("q").addEventListener("input", (e) => { hits = search(e.target.value); hitIdx = 0; if (e.target.value.trim()) renderResults(); else results.classList.remove("open"); });
+  $("q").addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown") { hitIdx = Math.min(hits.length - 1, hitIdx + 1); renderResults(); e.preventDefault(); }
+    else if (e.key === "ArrowUp") { hitIdx = Math.max(0, hitIdx - 1); renderResults(); e.preventDefault(); }
+    else if (e.key === "Enter" && hits[hitIdx]) { pick(hits[hitIdx].id); }
+    else if (e.key === "Escape") { results.classList.remove("open"); e.target.blur(); }
+  });
+  results.addEventListener("click", (e) => { const b = e.target.closest("[data-id]"); if (b) pick(b.dataset.id); });
+  document.addEventListener("click", (e) => { if (!e.target.closest(".search")) results.classList.remove("open"); });
+  function pick(id) { results.classList.remove("open"); $("q").blur(); if (state.tour) endTour(); goTo(id); }
+
+  // ------------------------------------------------------------------ events
+  const tip = $("tip");
+  cy.on("mouseover", "node", (e) => {
+    const n = byId.get(e.target.id());
+    tip.innerHTML = `<strong>${esc(n.label)}</strong> <span style="color:var(--muted)">${esc(KINDS[n.kind]?.label || n.kind)}</span>${n.desc ? `<div style="margin-top:2px">${md(n.desc.length > 160 ? n.desc.slice(0, 157) + "…" : n.desc)}</div>` : ""}`;
+    tip.style.display = "block";
+  });
+  cy.on("mouseover", "edge", (e) => {
+    const d = e.target.data();
+    const members = d.members.map((i) => edges[i]);
+    tip.innerHTML = members.slice(0, 6).map((m) => `<div><strong>${esc(byId.get(m.source).label)}</strong> ${esc(EKINDS[m.kind].label)}${m.labels.length ? ` <em>(${esc(m.labels.join("; "))})</em>` : ""} <strong>${esc(byId.get(m.target).label)}</strong></div>`).join("") + (members.length > 6 ? `<div>…and ${members.length - 6} more</div>` : "");
+    tip.style.display = "block";
+    e.target.addClass("show-label");
+  });
+  cy.on("mouseout", "node, edge", (e) => { tip.style.display = "none"; if (!state.edgeLabels && e.target.isEdge()) e.target.removeClass("show-label"); });
+  cy.on("mousemove", (e) => {
+    const r = $("cy").getBoundingClientRect();
+    const x = e.renderedPosition.x, y = e.renderedPosition.y;
+    tip.style.left = Math.min(x + 14, r.width - 330) + "px";
+    tip.style.top = (y + 14) + "px";
+  });
+  cy.on("tap", "node", (e) => {
+    const id = e.target.id();
+    if (e.originalEvent && e.originalEvent.shiftKey && state.selected && state.selected !== id) {
+      showPath(true, state.selected, id);
+      showDetails(id);
+      return;
+    }
+    if (state.tour) { showDetails(id); return; }
+    select(id);
+  });
+  cy.on("tap", "edge", (e) => {
+    const m = edges[e.target.data("members")[0]];
+    select(m.source);
+  });
+  cy.on("dbltap", "node", (e) => { if (state.tour) return; focusOn(e.target.id()); });
+  cy.on("tap", (e) => { if (e.target === cy && !state.tour) { if (state.path) { state.path = null; renderBanner(); } select(null); } });
+
+  $("views").addEventListener("click", (e) => { const b = e.target.closest("[data-view]"); if (b) { if (state.tour) endTour(); setView(b.dataset.view); } });
+  $("tours").addEventListener("click", (e) => { const b = e.target.closest("[data-tour]"); if (b) startTour(b.dataset.tour); });
+  $("side").addEventListener("change", (e) => {
+    const t = e.target;
+    if (state.tour && t.id !== "labelsToggle") endTour({restore: false});
+    if (t.dataset.sys) t.checked ? state.systems.add(t.dataset.sys) : state.systems.delete(t.dataset.sys);
+    else if (t.dataset.kind) t.checked ? state.kinds.add(t.dataset.kind) : state.kinds.delete(t.dataset.kind);
+    else if (t.dataset.ekind) t.checked ? state.ekinds.add(t.dataset.ekind) : state.ekinds.delete(t.dataset.ekind);
+    else if (t.id === "inactiveToggle") state.inactive = t.checked;
+    else if (t.id === "labelsToggle") { state.edgeLabels = t.checked; cy.edges().toggleClass("show-label", state.edgeLabels); return; }
+    else return;
+    rebuild();
+  });
+  $("fitBtn").onclick = () => cy.animate({fit: {padding: 40}}, {duration: 300});
+  $("relayoutBtn").onclick = () => { layout(true); applyHighlight(); };
+  $("menuBtn").onclick = () => $("side").classList.toggle("open");
+  $("themeBtn").onclick = () => {
+    const next = themeName() === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = next;
+    store.set("theme", next);
+    restyle();
+  };
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => restyle());
+  function restyle() {
+    cy.style(stylesheet());
+    cy.nodes().forEach((n) => n.data("color", sysColor(byId.get(n.id()).system)));
+    cy.edges().forEach((e) => e.data("color", edgeColor(e.data("kind"))));
+    renderFilters();
+    if (state.selected) showDetails(state.selected);
+  }
+  document.addEventListener("keydown", (e) => {
+    if (e.target.matches("input, textarea")) return;
+    if (e.key === "/") { $("q").focus(); e.preventDefault(); }
+    else if (e.key === "Escape") resetAll();
+    else if (state.tour && e.key === "ArrowRight") $("tourNext").click();
+    else if (state.tour && e.key === "ArrowLeft") $("tourPrev").click();
+  });
+
+  // ------------------------------------------------------------------ deep links
+  let syncing = false;
+  function syncHash() {
+    if (syncing) return;
+    const p = new URLSearchParams();
+    if (state.view !== "overview" && state.view !== "tour") p.set("view", state.view);
+    if (state.tour) { p.set("tour", state.tour.id); p.set("step", state.step + 1); }
+    else if (state.focus) p.set("focus", state.focus);
+    else if (state.selected) p.set("node", state.selected);
+    const h = p.toString();
+    history.replaceState(null, "", h ? "#" + h : location.pathname + location.search);
+  }
+  function fromHash() {
+    const p = new URLSearchParams(location.hash.slice(1));
+    syncing = true;
+    try {
+      setView(p.get("view") || "overview", {keepSelection: false});
+      if (p.get("tour")) startTour(p.get("tour"), Math.max(0, (parseInt(p.get("step"), 10) || 1) - 1));
+      else if (p.get("focus") && byId.has(p.get("focus"))) { ensureVisible(p.get("focus")); focusOn(p.get("focus")); }
+      else if (p.get("node") && byId.has(p.get("node"))) goTo(p.get("node"));
+    } finally { syncing = false; }
+    syncHash();
+  }
+
+  renderFilters();
+  fromHash();
+  window.addEventListener("resize", () => cy.resize());
+  if (window.ResizeObserver) new ResizeObserver(() => cy.resize()).observe($("cy"));
+  window.addEventListener("hashchange", () => { if (!syncing) fromHash(); });
+  window.__graph = {cy, state, GRAPH, startTour, goTo, setView};
+})();
+</script>
+</body>
+</html>

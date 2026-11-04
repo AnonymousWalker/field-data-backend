@@ -159,6 +159,28 @@ All endpoints:
 - **Exit codes** (CLI): `0` all ok, `1` a step failed, `2` bad input, `3` still pending when `--wait` ran out.
 - **Self-test:** `make test-tools` runs an offline test of both the CLI and the HTTP helper.
 
+## Architecture graph
+
+New here? Open **`docs/architecture/index.html`** in a browser (`xdg-open docs/architecture/index.html`, or `open` on macOS). It's an interactive map of the whole stack: every container, Azure Function, Service Bus topic and subscription, database table, make target and script, and how they connect. Each node links to its source at the pinned commit.
+
+- **Guided tours** step through *a commit's journey* (push → webhook → render → languageapi), *bringing the stack up*, and *testing with fdb*.
+- **Views** switch between the overview, message flow, data model and dev workflow, or show everything.
+- Click a node for its description, facts, source and connections. Double-click to focus on its neighbours. Shift-click a second node to see the path between them. Press `/` to search.
+
+The page needs internet access for its graph library (Cytoscape.js, from a CDN). [`docs/architecture/REPORT.md`](docs/architecture/REPORT.md) has the same information as text: hubs, the seams between systems, and known gaps.
+
+The graph is **generated from the code**, so it stays accurate. `tools/graph/build.py` reads the compose files, the Service Bus config, SRP's and languageapi's function definitions, the Drizzle schema, the Hasura metadata, the fdb package and the Makefile. `tools/graph/knowledge.json` adds what the code can't say: descriptions, a few runtime-only links (like the WACS → SRP webhook), and the tours. Every node it names must exist, so a rename fails the build instead of leaving stale docs.
+
+```bash
+make graph         # regenerate docs/architecture/ (needs PyYAML and checked-out submodules)
+```
+
+```bash
+make graph-check   # fail if docs/architecture/ is out of date with the code
+```
+
+Run `make graph` and commit the result whenever you change compose files, config, scripts, the Makefile or the submodule pins. To improve a description or a tour, edit `tools/graph/knowledge.json`; to change the page itself, edit `tools/graph/viewer.html`.
+
 ## Layout
 
 ```
@@ -166,6 +188,7 @@ compose.yaml                 root compose file; `include:`s the files below
 compose/{infra,wacs,languageapi,srp}.yaml
 compose/overrides/           optional overlays (wacs-prebuilt.yaml)
 docker/                      umbrella-owned Dockerfiles (build context = the submodule)
+docs/architecture/           generated architecture graph: index.html (interactive), REPORT.md, graph.json
 config/                      emulator config + env overrides for upstream config
 seed/                        seed.sh, fixtures (demo Bible repo), templates, reference data, SQL
 scripts/                     smoke.sh and shared helpers (lib.sh)
@@ -174,6 +197,7 @@ tools/                       fdb support tools:
   cli/fdb                    CLI entry point
   http/                      fdb-api image (Dockerfile, entrypoint)
   test.sh                    offline end-to-end test of both (make test-tools)
+  graph/                     architecture graph generator (build.py), curated knowledge.json, viewer.html
 repos/                       submodules: wacs (prod), srp (master), languageapi (prod)
 ```
 
@@ -183,7 +207,8 @@ The submodules are pinned to exact commits, so everyone tests the same code.
 
 1. Run `make bump` to move each one to the tip of its tracked branch.
 2. Run `make reset` to check the new pins still work together.
-3. Commit the new pins.
+3. Run `make graph` so the architecture graph matches the new code.
+4. Commit the new pins and `docs/architecture/`.
 
 To test a branch of one repo, check it out inside `repos/<name>` and run `make up`. Images rebuild from whatever is checked out.
 
