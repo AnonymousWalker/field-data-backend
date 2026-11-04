@@ -159,17 +159,14 @@ All endpoints:
 - **Exit codes** (CLI): `0` all ok, `1` a step failed, `2` bad input, `3` still pending when `--wait` ran out.
 - **Self-test:** `make test-tools` runs an offline test of both the CLI and the HTTP helper.
 
-## Architecture graph
+## System design diagram
 
-New here? Open **`docs/architecture/index.html`** in a browser (`xdg-open docs/architecture/index.html`, or `open` on macOS). It's an interactive map of the whole stack: every container, Azure Function, Service Bus topic and subscription, database table, make target and script, and how they connect. Each node links to its source at the pinned commit.
+New here? Start with **[`docs/architecture/`](docs/architecture/)**. It's a [GitDiagram](https://gitdiagram.com)-style system design diagram of the whole stack: one box per system, the containers, Azure Functions, Service Bus topics and data stores inside them, and labelled arrows showing what flows where. An arrow out of a topic names the subscription and its filter.
 
-- **Guided tours** step through *a commit's journey* (push → webhook → render → languageapi), *bringing the stack up*, and *testing with fdb*.
-- **Views** switch between the overview, message flow, data model and dev workflow, or show everything.
-- Click a node for its description, facts, source and connections. Double-click to focus on its neighbours. Shift-click a second node to see the path between them. Press `/` to search.
+- **On GitHub:** [`docs/architecture/README.md`](docs/architecture/README.md) shows the diagram directly, followed by the hubs, the links between systems, and known gaps.
+- **In a browser:** open `docs/architecture/index.html` (`xdg-open docs/architecture/index.html`, or `open` on macOS). You can pan and zoom, hover a box for a summary, and click it to open its source at the pinned commit. The **walkthroughs** below the diagram (*a commit's journey*, *bringing the stack up*, *testing with fdb*) highlight each step. You can also copy the Mermaid source or download an SVG. The page loads Mermaid from a CDN, so it needs internet access.
 
-The page needs internet access for its graph library (Cytoscape.js, from a CDN). [`docs/architecture/REPORT.md`](docs/architecture/REPORT.md) has the same information as text: hubs, the seams between systems, and known gaps.
-
-The graph is **generated from the code**, so it stays accurate. `tools/graph/build.py` reads the compose files, the Service Bus config, SRP's and languageapi's function definitions, the Drizzle schema, the Hasura metadata, the fdb package and the Makefile. `tools/graph/knowledge.json` adds what the code can't say: descriptions, a few runtime-only links (like the WACS → SRP webhook), and the tours. Every node it names must exist, so a rename fails the build instead of leaving stale docs.
+The diagram is **generated from the code**, so it stays accurate. `tools/graph/build.py` reads the compose files, the Service Bus config, SRP's and languageapi's function definitions, the Drizzle schema, the Hasura metadata, the fdb package and the Makefile into a full graph ([`graph.json`](docs/architecture/graph.json), about 150 items). `tools/graph/mermaid.py` then draws it at component level, folding tables into their database, subscriptions into arrows, and look-alike functions into one box. `tools/graph/knowledge.json` holds what the code can't say: descriptions, a few runtime-only links (like the WACS → SRP webhook), the walkthroughs, and how the diagram groups things. Every item it names must exist, so a rename fails the build instead of leaving stale docs.
 
 ```bash
 make graph         # regenerate docs/architecture/ (needs PyYAML and checked-out submodules)
@@ -179,7 +176,7 @@ make graph         # regenerate docs/architecture/ (needs PyYAML and checked-out
 make graph-check   # fail if docs/architecture/ is out of date with the code
 ```
 
-Run `make graph` and commit the result whenever you change compose files, config, scripts, the Makefile or the submodule pins. To improve a description or a tour, edit `tools/graph/knowledge.json`; to change the page itself, edit `tools/graph/viewer.html`.
+Run `make graph` and commit the result whenever you change compose files, config, scripts, the Makefile or the submodule pins. To reword a box or a walkthrough, or change how things are grouped, edit `tools/graph/knowledge.json`; to change the page itself, edit `tools/graph/viewer.html`.
 
 ## Layout
 
@@ -188,7 +185,7 @@ compose.yaml                 root compose file; `include:`s the files below
 compose/{infra,wacs,languageapi,srp}.yaml
 compose/overrides/           optional overlays (wacs-prebuilt.yaml)
 docker/                      umbrella-owned Dockerfiles (build context = the submodule)
-docs/architecture/           generated architecture graph: index.html (interactive), REPORT.md, graph.json
+docs/architecture/           generated system design diagram: README.md (renders on GitHub), index.html, diagram.mmd, graph.json
 config/                      emulator config + env overrides for upstream config
 seed/                        seed.sh, fixtures (demo Bible repo), templates, reference data, SQL
 scripts/                     smoke.sh and shared helpers (lib.sh)
@@ -197,7 +194,7 @@ tools/                       fdb support tools:
   cli/fdb                    CLI entry point
   http/                      fdb-api image (Dockerfile, entrypoint)
   test.sh                    offline end-to-end test of both (make test-tools)
-  graph/                     architecture graph generator (build.py), curated knowledge.json, viewer.html
+  graph/                     diagram generator: build.py (extract), mermaid.py (draw), knowledge.json, viewer.html
 repos/                       submodules: wacs (prod), srp (master), languageapi (prod)
 ```
 
@@ -207,7 +204,7 @@ The submodules are pinned to exact commits, so everyone tests the same code.
 
 1. Run `make bump` to move each one to the tip of its tracked branch.
 2. Run `make reset` to check the new pins still work together.
-3. Run `make graph` so the architecture graph matches the new code.
+3. Run `make graph` so the system design diagram matches the new code.
 4. Commit the new pins and `docs/architecture/`.
 
 To test a branch of one repo, check it out inside `repos/<name>` and run `make up`. Images rebuild from whatever is checked out.

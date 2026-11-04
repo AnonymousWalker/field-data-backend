@@ -993,7 +993,7 @@
    },
    "system": "umbrella",
    "parent": "sys:umbrella",
-   "desc": "Regenerate the interactive architecture graph (docs/architecture/index.html)"
+   "desc": "Regenerate the system design diagram (docs/architecture/)"
   },
   {
    "id": "make:graph-check",
@@ -5610,7 +5610,13 @@
       "sub:wacsevent/RepoAnalysis",
       "sub:wacsevent/WebhookDispatcher",
       "sub:wacsevent/languageapi",
-      "sub:wacsevent/InternalProcessor"
+      "sub:wacsevent/InternalProcessor",
+      "fn:srp/RenderingTrigger",
+      "fn:srp/ProgressReporting",
+      "fn:srp/RepoAnalysisTrigger",
+      "fn:srp/WebhookDispatcherWACSMessageTrigger",
+      "fn:lapi/waLangApiGitTopics",
+      "svc:VerseReportingProcessor"
      ],
      "focus": "topic:wacsevent"
     },

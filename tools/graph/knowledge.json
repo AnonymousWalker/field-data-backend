@@ -487,7 +487,13 @@
             "sub:wacsevent/RepoAnalysis",
             "sub:wacsevent/WebhookDispatcher",
             "sub:wacsevent/languageapi",
-            "sub:wacsevent/InternalProcessor"
+            "sub:wacsevent/InternalProcessor",
+            "fn:srp/RenderingTrigger",
+            "fn:srp/ProgressReporting",
+            "fn:srp/RepoAnalysisTrigger",
+            "fn:srp/WebhookDispatcherWACSMessageTrigger",
+            "fn:lapi/waLangApiGitTopics",
+            "svc:VerseReportingProcessor"
           ],
           "focus": "topic:wacsevent"
         },
@@ -676,5 +682,108 @@
         }
       ]
     }
-  ]
+  ],
+  "diagram": {
+    "direction": "TD",
+    "system_order": [
+      "umbrella",
+      "fdb",
+      "wacs",
+      "srp",
+      "infra",
+      "languageapi"
+    ],
+    "groups": {
+      "dev_reset": {
+        "label": "make reset",
+        "sub": "nuke → up → seed → smoke",
+        "parent": "sys:umbrella",
+        "match": "^make:(reset|nuke|up|seed|smoke)$",
+        "desc": "One command for a fresh stack: nuke, up, seed, then smoke (health checks plus a real commit followed all the way to Hasura). Each step is also its own make target.",
+        "kind": "make"
+      },
+      "fdb_cli": {
+        "label": "fdb CLI",
+        "sub": "tools/cli/fdb",
+        "parent": "sys:fdb",
+        "match": "^(script:tools/cli/fdb|py:fdb\\.cli)$",
+        "kind": "script"
+      },
+      "fdb_core": {
+        "label": "fdb core",
+        "sub": "import · put · status",
+        "parent": "sys:fdb",
+        "match": "^py:fdb\\.(core|clients|config)$",
+        "kind": "module"
+      },
+      "fdb_http": {
+        "label": "HTTP API",
+        "sub": "/import · /repos/…/contents · /pipeline",
+        "parent": "svc:fdb-api",
+        "match": "^(ep:fdb/|py:fdb\\.server$)"
+      },
+      "srp_http": {
+        "label": "On-demand HTTP",
+        "sub": "RenderDoc · CheckRepoExists · (Un)RegisterWebhook",
+        "parent": "svc:srp-webhook",
+        "match": "^fn:srp/(RenderDoc|CheckRepoExists|RegisterWebhook|UnregisterWebhook)$"
+      },
+      "srp_dispatch": {
+        "label": "WebhookDispatcher",
+        "sub": "Service Bus trigger ×2",
+        "parent": "svc:srp-worker",
+        "match": "^fn:srp/WebhookDispatcher"
+      },
+      "srp_renderers": {
+        "label": "Renderers",
+        "sub": "Bible · tN · tQ · tW · tA · commentary",
+        "parent": "svc:srp-worker",
+        "match": "^renderer:(?!USFM)"
+      },
+      "lapi_routes": {
+        "label": "REST routes",
+        "sub": "/api/language · content · git · rendering …",
+        "parent": "svc:lapi-controller",
+        "match": "^route:lapi/"
+      },
+      "lapi_timers": {
+        "label": "Timers",
+        "sub": "localizations · GL USFM sources",
+        "parent": "svc:lapi-controller",
+        "match": "^fn:lapi/(manageLocalizationTable|populateGlUsfmSources)$"
+      }
+    },
+    "include": [
+      "script:seed/seed.sh"
+    ],
+    "exclude": [
+      "svc:sb-health",
+      "svc:tools",
+      "svc:sb-sql",
+      "renderer:USFMRenderer",
+      "blob:versecounts",
+      "rest:hasura/consolidated-repos",
+      "rest:hasura/langnames"
+    ],
+    "hide_edges_from": [
+      "svc:fdb-api"
+    ],
+    "edge_labels": {
+      "svc_wacs->blob__web": "links to rendered pages",
+      "script_seed_seed_sh->svc_wacs": "admin user, webhook, demo repo",
+      "script_seed_seed_sh->svc_wacs_db": "token trigger SQL",
+      "script_seed_seed_sh->svc_lapi_controller": "reference data",
+      "script_seed_seed_sh->blob__web": "creates containers",
+      "grp_fdb_http->grp_fdb_core": "same operations"
+    },
+    "aliases": {
+      "script:scripts/smoke.sh": "make:reset",
+      "script:scripts/lib.sh": "script:seed/seed.sh"
+    },
+    "flip": {
+      "fn_srp_RenderingTrigger->svc_wacs": "repo zip",
+      "grp_lapi_timers->svc_wacs": "repo listings (API)",
+      "fn_srp_RenderingTrigger->blob_template": "print.html"
+    }
+  }
 }

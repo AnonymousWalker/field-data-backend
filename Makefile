@@ -85,7 +85,7 @@ test-tools: ## Offline end-to-end test of the fdb CLI and HTTP API
 	./tools/test.sh
 
 .PHONY: graph
-graph: ## Regenerate the interactive architecture graph (docs/architecture/index.html)
+graph: ## Regenerate the system design diagram (docs/architecture/)
 	python3 tools/graph/build.py
 
 .PHONY: graph-check
