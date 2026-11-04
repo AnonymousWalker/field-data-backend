@@ -1,0 +1,71 @@
+# field-data-backend: one-command local stack for WACS + ScriptureRenderingPipeline + languageapi.
+# Run `make help` for targets. Settings come from .env (see .env.example) or the environment.
+
+-include .env
+export
+
+SHELL := /bin/bash
+COMPOSE_FILE_ARGS := -f compose.yaml
+ifeq ($(WACS_PREBUILT),1)
+COMPOSE_FILE_ARGS += -f compose/overrides/wacs-prebuilt.yaml
+endif
+export COMPOSE_FILE_ARGS
+COMPOSE := docker compose $(COMPOSE_FILE_ARGS)
+
+.DEFAULT_GOAL := help
+
+.PHONY: help
+help: ## Show this help
+	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
+
+.PHONY: init
+init: ## Check out the pinned submodule commits
+	git submodule update --init --recursive
+
+.PHONY: prepare
+prepare:
+	@test -f repos/wacs/.env && test -d repos/srp/PipelineCommon && test -d repos/languageapi/controller \
+		|| { echo "Submodules missing: run 'make init' first" >&2; exit 1; }
+	@mkdir -p .local
+	@if [ -n "$(EXTRA_CA_FILE)" ]; then cp "$(EXTRA_CA_FILE)" .local/extra-ca.pem; else : > .local/extra-ca.pem; fi
+
+.PHONY: build
+build: prepare ## Build all locally-built images
+	$(COMPOSE) build
+
+.PHONY: up
+up: prepare ## Build (if needed) and start everything, waiting until healthy
+	$(COMPOSE) up -d --build --wait
+
+.PHONY: down
+down: ## Stop containers (keeps data volumes)
+	$(COMPOSE) --profile tools down --remove-orphans
+
+.PHONY: nuke
+nuke: ## Stop containers and delete all data volumes
+	$(COMPOSE) --profile tools down -v --remove-orphans
+
+.PHONY: ps
+ps: ## Show service status
+	$(COMPOSE) ps -a
+
+.PHONY: logs
+logs: ## Follow logs (S=service to filter, e.g. make logs S=srp-worker)
+	$(COMPOSE) logs -f --tail 100 $(S)
+
+.PHONY: seed
+seed: ## Seed admin user, webhook, storage containers, reference data and demo repo
+	./seed/seed.sh
+
+.PHONY: smoke
+smoke: ## Health checks + end-to-end render flow
+	./scripts/smoke.sh
+
+.PHONY: reset
+reset: nuke up seed smoke ## Fresh stack from scratch: nuke, up, seed, smoke
+
+.PHONY: bump
+bump: ## Move submodules to the tip of their tracked branches (review, then commit)
+	git submodule update --remote
+	@git submodule status
+	@echo "Review with 'git diff --submodule', then commit the new pins."

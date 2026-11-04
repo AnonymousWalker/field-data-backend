@@ -1,0 +1,12 @@
+[submodule "repos/wacs"]
+	path = repos/wacs
+	url = https://github.com/WycliffeAssociates/WACS
+	branch = prod
+[submodule "repos/srp"]
+	path = repos/srp
+	url = https://github.com/WycliffeAssociates/ScriptureRenderingPipeline
+	branch = master
+[submodule "repos/languageapi"]
+	path = repos/languageapi
+	url = https://github.com/WycliffeAssociates/languageapi
+	branch = prod
