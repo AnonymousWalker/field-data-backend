@@ -6,3 +6,4 @@ include:
   - compose/infra.yaml
   - compose/wacs.yaml
   - compose/languageapi.yaml
+  - compose/srp.yaml

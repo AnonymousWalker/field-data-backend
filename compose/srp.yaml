@@ -1,0 +1,75 @@
+# ScriptureRenderingPipeline (v1 scope): the webhook front door and the rendering Worker.
+# BTTWriterCatalog (Cosmos) and VerseReportingProcessor (SQL/PORT) are intentionally not included.
+x-sb-conn: &sb-conn "Endpoint=sb://servicebus;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+x-azurite-conn: &azurite-conn "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;QueueEndpoint=http://azurite:10001/devstoreaccount1;TableEndpoint=http://azurite:10002/devstoreaccount1;"
+
+x-srp-build: &srp-build
+  context: ../repos/srp
+  dockerfile: ../../docker/srp/functions.Dockerfile
+  secrets: [extra_ca]
+
+x-srp-depends: &srp-depends
+  azurite:
+    condition: service_healthy
+  sb-health:
+    condition: service_healthy
+
+services:
+  srp-webhook:
+    build:
+      <<: *srp-build
+      args:
+        PROJECT: ScriptureRenderingPipeline
+    image: fdb/srp-webhook:local
+    ports:
+      - "${SRP_WEBHOOK_PORT:-7071}:80"
+    environment:
+      AzureWebJobsStorage: *azurite-conn
+      ServiceBusConnectionString: *sb-conn
+      WebhookStorageConnectionString: *azurite-conn
+      # Compared with the host of the pushed repo's html_url (Gitea ROOT_URL is http://localhost:<port>/).
+      AllowedDomain: localhost
+    depends_on: *srp-depends
+    healthcheck:
+      # The Functions host answers its admin status endpoint once the worker is up.
+      test: ["CMD-SHELL", "curl -fsS http://localhost/admin/host/ping >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
+
+  srp-worker:
+    build:
+      <<: *srp-build
+      args:
+        PROJECT: ScriptureRenderingPipelineWorker
+    image: fdb/srp-worker:local
+    environment:
+      AzureWebJobsStorage: *azurite-conn
+      ServiceBusConnectionString: *sb-conn
+      ScripturePipelineStorageConnectionString: *azurite-conn
+      WebhookStorageConnectionString: *azurite-conn
+      ScripturePipelineStorageOutputContainer: $$web
+      ScripturePipelineStorageTemplateContainer: template
+      ScriptureRenderingPipelineBaseUrl: "http://localhost:${AZURITE_BLOB_PORT:-10000}/devstoreaccount1/$$web/"
+      ScriptureRenderingPipelineResourcesUser: WycliffeAssociates
+      MaxRepoSizeInMB: "0"
+      # Gitea credentials are keyed by the host in the repo's html_url (localhost); BaseUrl is the
+      # in-network address. User/password are the admin that `make seed` creates.
+      Gitea__localhost__BaseUrl: http://wacs:3000
+      Gitea__localhost__User: "${WACS_ADMIN_USER:-fdbadmin}"
+      Gitea__localhost__Password: "${WACS_ADMIN_PASSWORD:-fdbadmin123}"
+      GiteaBaseAddress: http://wacs:3000
+      MergeDestinationUser: "${WACS_ADMIN_USER:-fdbadmin}"
+      ScriptureBurritoMergeEnabled: "false"
+    depends_on: *srp-depends
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost/admin/host/ping >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
+
+secrets:
+  extra_ca:
+    file: ../.local/extra-ca.pem
