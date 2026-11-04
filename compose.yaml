@@ -4,3 +4,4 @@ name: field-data
 
 include:
   - compose/infra.yaml
+  - compose/wacs.yaml

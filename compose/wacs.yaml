@@ -1,0 +1,63 @@
+# WACS: WA-branded Gitea + MariaDB + Valkey. Built from repos/wacs; config is upstream .env + config/wacs.env.
+services:
+  wacs:
+    build:
+      context: ../repos/wacs/wacs-gitea
+    image: fdb/wacs:local
+    user: 1001:1002
+    env_file:
+      - ../repos/wacs/.env
+      - ../config/wacs.env
+    environment:
+      # Host-facing URL; html_url/clone URLs use it, and SRP keys its Gitea credentials by this host.
+      GITEA__server__DOMAIN: "localhost:${WACS_HTTP_PORT:-3000}"
+      GITEA__server__ROOT_URL: "http://localhost:${WACS_HTTP_PORT:-3000}/"
+      GITEA__server__SSH_PORT: "${WACS_SSH_PORT:-2222}"
+      READER_BASE_LINK: "http://localhost:${AZURITE_BLOB_PORT:-10000}/devstoreaccount1/$$web/u/"
+    volumes:
+      - wacs_data:/var/lib/gitea
+      - wacs_config:/etc/gitea
+    ports:
+      - "${WACS_HTTP_PORT:-3000}:3000"
+      - "${WACS_SSH_PORT:-2222}:222"
+    depends_on:
+      wacs-db:
+        condition: service_healthy
+      wacs-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/api/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+  wacs-db:
+    image: mariadb:10.11
+    command: mariadbd --innodb-buffer-pool-size=256M --max_connections=200
+    environment:
+      MARIADB_ROOT_PASSWORD: gitea
+      MARIADB_USER: gitea
+      MARIADB_PASSWORD: gitea
+      MARIADB_DATABASE: gitea
+    volumes:
+      - wacs_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+      start_period: 5s
+
+  wacs-redis:
+    image: valkey/valkey:7.2
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  wacs_data:
+  wacs_config:
+  wacs_db_data:

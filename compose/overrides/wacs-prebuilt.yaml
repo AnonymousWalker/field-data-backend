@@ -1,0 +1,7 @@
+# Use a published WACS image instead of building repos/wacs (enabled with WACS_PREBUILT=1).
+# Handy when the local Docker build can't reach the Go module proxy; note the image
+# reflects the WACS `prod` branch CI build, not necessarily the pinned submodule commit.
+services:
+  wacs:
+    build: !reset null
+    image: ${WACS_IMAGE:-wycliffeassociates/wacs:latest}
